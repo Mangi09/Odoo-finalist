@@ -1,12 +1,11 @@
 import React from 'react';
-import DashboardLayout from '../components/DashboardLayout';
-import AdminHeader from '../components/AdminHeader';
-import EcosystemSummary from '../components/EcosystemSummary';
-import LifecycleOverview from '../components/LifecycleOverview';
-import PerformanceAnalytics from '../components/PerformanceAnalytics';
-import AttentionPanel from '../components/AttentionPanel';
-import AdminActivityTimeline from '../components/AdminActivityTimeline';
-import '../components/AdminDashboard.css';
+// import AdminHeader from '../components/AdminHeader';
+// import EcosystemSummary from '../components/EcosystemSummary';
+// import LifecycleOverview from '../components/LifecycleOverview';
+// import PerformanceAnalytics from '../components/PerformanceAnalytics';
+// import AttentionPanel from '../components/AttentionPanel';
+// import AdminActivityTimeline from '../components/AdminActivityTimeline';
+// import '../components/AdminDashboard.css';
 
 export default function AdminDashboardPage() {
   // Mock Data
@@ -61,24 +60,12 @@ export default function AdminDashboardPage() {
   ];
 
   return (
-    <DashboardLayout>
+    <main className="content">
       <div className="admin-dashboard-page">
-        <AdminHeader />
-        
-        <EcosystemSummary data={mockKpis} />
-        
-        <LifecycleOverview stages={mockLifecycleStages} />
-        
-        <div className="admin-main-grid">
-          <div className="admin-left-col">
-            <PerformanceAnalytics analytics={mockAnalytics} />
-          </div>
-          <div className="admin-right-col">
-            <AttentionPanel items={mockAttentionItems} />
-            <AdminActivityTimeline activities={mockActivity} />
-          </div>
+        <div className="info-box" style={{ marginTop: '20px' }}>
+          This page is under construction. Layout components are missing.
         </div>
       </div>
-    </DashboardLayout>
+    </main>
   );
 }

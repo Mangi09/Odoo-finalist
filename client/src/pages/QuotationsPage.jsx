@@ -1,10 +1,9 @@
 import React, { useState } from 'react';
 import { Plus } from 'lucide-react';
-import DashboardLayout from '../components/DashboardLayout';
-import QuotationSummary from '../components/QuotationSummary';
-import QuotationToolbar from '../components/QuotationToolbar';
-import QuotationBoard from '../components/QuotationBoard';
-import '../components/Quotations.css';
+// import QuotationSummary from '../components/QuotationSummary';
+// import QuotationToolbar from '../components/QuotationToolbar';
+// import QuotationBoard from '../components/QuotationBoard';
+// import '../components/Quotations.css';
 
 // Initial Mock Data
 const initialQuotations = [
@@ -46,7 +45,7 @@ export default function QuotationsPage() {
   });
 
   return (
-    <DashboardLayout>
+    <main className="content">
       <div className="quotations-page">
         {/* Header */}
         <div className="quotations-header">
@@ -62,24 +61,10 @@ export default function QuotationsPage() {
         </div>
 
         {/* Summary Metrics */}
-        <QuotationSummary />
-
-        {/* Filters */}
-        <QuotationToolbar 
-          searchQuery={searchQuery}
-          setSearchQuery={setSearchQuery}
-          customerFilter={customerFilter}
-          setCustomerFilter={setCustomerFilter}
-          statusFilter={statusFilter}
-          setStatusFilter={setStatusFilter}
-        />
-
-        {/* Kanban Board */}
-        <QuotationBoard 
-          quotations={filteredQuotations}
-          onDropQuotation={handleDropQuotation}
-        />
+        <div className="info-box" style={{ marginTop: '20px' }}>
+          Quotations board coming soon.
+        </div>
       </div>
-    </DashboardLayout>
+    </main>
   );
 }
