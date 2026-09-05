@@ -196,7 +196,7 @@ export default function ApprovalDetail({ data, onNavigate }) {
         {/* Workflow Visualization */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "40px", padding: "0 20px", position: "relative" }}>
           <div style={{ position: "absolute", top: "20px", left: "40px", right: "40px", height: "4px", background: "#cbd5e0", zIndex: 0 }}></div>
-          
+
           {[
             { label: "Submitted", color: "#48bb78" },
             { label: "Sales Manager", color: "#3182ce" },
