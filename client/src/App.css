@@ -81,7 +81,12 @@ body {
   display: flex;
   flex-direction: column;
   z-index: 50;
-  transition: transform 0.3s ease;
+  transition: width 0.25s ease, min-width 0.25s ease, transform 0.3s ease;
+}
+
+.layout-sidebar-col.collapsed {
+  width: 82px;
+  min-width: 82px;
 }
 
 .layout-center-col {
@@ -93,6 +98,7 @@ body {
   height: 100vh;
   overflow-y: auto;
   background: #EFF1F5;
+  transition: padding 0.25s ease;
 }
 
 .center-card-container {
@@ -139,6 +145,28 @@ body {
   display: flex;
   align-items: center;
   gap: 12px;
+  position: relative;
+}
+
+.sidebar-collapse-btn {
+  margin-left: auto;
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
+  border: 1px solid #E5E7EB;
+  background: #ffffff;
+  color: #606CE4;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.sidebar-collapse-btn:hover {
+  background: #EEF0FF;
+  border-color: #C7CBF2;
 }
 
 .brand-logo-icon {
@@ -258,6 +286,44 @@ body {
   position: relative;
 }
 
+.layout-sidebar-col.collapsed .sidebar-brand {
+  padding: 24px 18px 18px;
+  justify-content: center;
+}
+
+.layout-sidebar-col.collapsed .brand-info,
+.layout-sidebar-col.collapsed .sidebar-profile-card,
+.layout-sidebar-col.collapsed .nav-group-label,
+.layout-sidebar-col.collapsed .nav-item-label,
+.layout-sidebar-col.collapsed .sidebar-logout-btn span {
+  display: none;
+}
+
+.layout-sidebar-col.collapsed .sidebar-collapse-btn {
+  position: absolute;
+  right: 10px;
+  top: 58px;
+  z-index: 2;
+}
+
+.layout-sidebar-col.collapsed .sidebar-nav-section {
+  padding: 20px 12px 0;
+}
+
+.layout-sidebar-col.collapsed .sidebar-nav-list {
+  gap: 8px;
+}
+
+.layout-sidebar-col.collapsed .sidebar-nav-item,
+.layout-sidebar-col.collapsed .sidebar-logout-btn {
+  justify-content: center;
+  padding: 12px;
+}
+
+.layout-sidebar-col.collapsed .sidebar-footer {
+  padding: 12px;
+}
+
 .sidebar-nav-item:hover {
   background: #F3F4F6;
   color: #111827;
@@ -331,7 +397,7 @@ body {
 }
 
 .context-panel-header-card {
-  padding: 24px 20px 16px;
+  padding: 28px 26px 20px;
   display: flex;
   align-items: center;
   gap: 14px;
@@ -369,17 +435,17 @@ body {
 }
 
 .context-panel-body {
-  padding: 20px;
+  padding: 26px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 22px;
 }
 
 .panel-card {
   background: #ffffff;
   border: 1px solid #E5E7EB;
   border-radius: 16px;
-  padding: 18px;
+  padding: 22px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
 }
 
@@ -387,7 +453,9 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 12px;
+  gap: 18px;
+  margin-bottom: 18px;
+  flex-wrap: wrap;
 }
 
 .panel-badge {
@@ -438,29 +506,29 @@ body {
   font-size: 16px;
   font-weight: 700;
   color: #111827;
-  margin-bottom: 4px;
+  margin-bottom: 8px;
 }
 
 .panel-subtitle-text {
   font-size: 13px;
   color: #6B7280;
-  margin-bottom: 16px;
+  margin-bottom: 20px;
 }
 
 .panel-meta-list {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 14px;
   border-top: 1px solid #F3F4F6;
   border-bottom: 1px solid #F3F4F6;
-  padding: 12px 0;
-  margin-bottom: 16px;
+  padding: 16px 0;
+  margin-bottom: 22px;
 }
 
 .panel-meta-item {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 5px;
 }
 
 .meta-label {
@@ -485,7 +553,7 @@ body {
 .panel-actions {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 14px;
 }
 
 .panel-btn-primary {
@@ -494,7 +562,7 @@ body {
   justify-content: space-between;
   width: 100%;
   gap: 8px;
-  padding: 10px 14px;
+  padding: 12px 16px;
   border-radius: 12px;
   border: none;
   background: linear-gradient(135deg, #606CE4 0%, #5B63D9 100%);
@@ -1034,6 +1102,39 @@ tbody tr:last-child td {
 
 .filter-section select:hover {
   background-color: #F9FAFB;
+}
+
+.approvals-page {
+  padding: 34px;
+}
+
+.approvals-header {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 28px;
+}
+
+.approvals-status-row {
+  gap: 16px;
+  margin-bottom: 30px;
+}
+
+.approvals-status-row .status {
+  min-width: 132px;
+  padding: 10px 18px;
+}
+
+.approvals-table {
+  margin-bottom: 28px;
+}
+
+.approvals-info {
+  margin-bottom: 24px;
+}
+
+.approvals-filter {
+  margin-top: 2px;
 }
 
 .metrics-container {
@@ -1784,6 +1885,39 @@ button.btn-danger {
     box-shadow: 4px 0 20px rgba(0, 0, 0, 0.1);
   }
 
+  .layout-sidebar-col.collapsed {
+    width: 250px;
+    min-width: 250px;
+  }
+
+  .layout-sidebar-col.collapsed .brand-info,
+  .layout-sidebar-col.collapsed .sidebar-profile-card,
+  .layout-sidebar-col.collapsed .nav-group-label,
+  .layout-sidebar-col.collapsed .nav-item-label,
+  .layout-sidebar-col.collapsed .sidebar-logout-btn span {
+    display: flex;
+  }
+
+  .layout-sidebar-col.collapsed .nav-group-label,
+  .layout-sidebar-col.collapsed .nav-item-label,
+  .layout-sidebar-col.collapsed .sidebar-logout-btn span {
+    display: initial;
+  }
+
+  .layout-sidebar-col.collapsed .sidebar-collapse-btn {
+    position: static;
+  }
+
+  .layout-sidebar-col.collapsed .sidebar-nav-section {
+    padding: 0 14px;
+  }
+
+  .layout-sidebar-col.collapsed .sidebar-nav-item,
+  .layout-sidebar-col.collapsed .sidebar-logout-btn {
+    justify-content: flex-start;
+    padding: 10px 14px;
+  }
+
   .layout-sidebar-col.mobile-open {
     transform: translateX(0);
   }
@@ -1812,6 +1946,10 @@ button.btn-danger {
 
   .content {
     padding: 0;
+  }
+
+  .approvals-page {
+    padding: 24px 20px;
   }
 
   .two-col-layout,

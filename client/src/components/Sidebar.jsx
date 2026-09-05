@@ -13,10 +13,12 @@ import {
   Users,
   LogOut,
   Hexagon,
-  Sparkles
+  Sparkles,
+  PanelLeftClose,
+  PanelLeftOpen
 } from "lucide-react";
 
-export default function Sidebar({ currentTab, onNavigate }) {
+export default function Sidebar({ currentTab, onNavigate, collapsed, onToggleCollapse }) {
   const navItems = [
     { id: "dashboard", label: "Dashboard", icon: <House size={18} /> },
     { id: "quotations", label: "Quotations", icon: <CircleStar size={18} /> },
@@ -61,6 +63,15 @@ export default function Sidebar({ currentTab, onNavigate }) {
           <span className="brand-name">DealFlow360</span>
           <span className="brand-tagline">Sales & Operations</span>
         </div>
+        <button
+          type="button"
+          className="sidebar-collapse-btn"
+          onClick={onToggleCollapse}
+          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+        >
+          {collapsed ? <PanelLeftOpen size={17} /> : <PanelLeftClose size={17} />}
+        </button>
       </div>
 
       {/* Profile / Workspace Greeting Card (Figma Style) */}

@@ -1,18 +1,4 @@
 import "../App.css";
-import {
-  LayoutDashboard,
-  FileText,
-  CheckCircle,
-  Package,
-  RefreshCw,
-  Receipt,
-  HeartPulse,
-  BarChart3,
-  Box,
-  CircleCheck,
-  CircleStar,
-  House
-} from "lucide-react"
 function Approvals({ onNavigate }) {
   const approvals = [
     {
@@ -40,15 +26,17 @@ function Approvals({ onNavigate }) {
 
   return (
     <main className="content">
-      <div className="page-card">
-        <h1>Approvals (List)</h1>
+      <div className="page-card approvals-page">
+        <div className="approvals-header">
+          <h1>Approvals (List)</h1>
 
-        <p className="subtitle">
-          Every quotation that needed, needs, or is going through discount approval
-        </p>
+          <p className="subtitle">
+            Every quotation that needed, needs, or is going through discount approval
+          </p>
+        </div>
 
         {/* Status Cards */}
-        <div className="status-container">
+        <div className="status-container approvals-status-row">
           <div className="status pending">
             <span>3 Pending</span>
           </div>
@@ -63,7 +51,7 @@ function Approvals({ onNavigate }) {
         </div>
 
         {/* Approval Table */}
-        <div className="table-wrapper">
+        <div className="table-wrapper approvals-table">
           <table>
             <thead>
               <tr>
@@ -90,12 +78,12 @@ function Approvals({ onNavigate }) {
         </div>
 
         {/* Information Box */}
-        <div className="info-box">
+        <div className="info-box approvals-info">
           Click any row to open its full approval detail, risk breakdown, and audit trail.
         </div>
 
         {/* Filter */}
-        <div className="filter-section">
+        <div className="filter-section approvals-filter">
           <label htmlFor="filter">Filter:</label>
 
           <select id="filter" defaultValue="pending">

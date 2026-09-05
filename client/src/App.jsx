@@ -11,6 +11,7 @@ import FulfillmentList from "./pages/FulfillmentList";
 import FulfillmentDetail from "./pages/FulfillmentDetail";
 import Dashboard from "./pages/Dashboard";
 import QuotationsPage from "./pages/QuotationsPage";
+import NewQuotationPage from "./pages/NewQuotationPage";
 import DealHealthPage from "./pages/DealHealthPage";
 import AdminDashboardPage from "./pages/AdminDashboardPage";
 import Products from "./pages/Products";
@@ -48,6 +49,15 @@ const initialSubscriptions = [
   { id: "SUB-123", customer: "Wonka Industries", plan: "Care Plan 1yr", cycle: "Quarterly", nextBill: "Nov 18", status: "Active", amount: 1100 },
 ];
 
+const initialQuotations = [
+  { id: "Q-1044", customer: "Acme Corp", priceList: "Gold", amount: "$1,800", status: "Draft" },
+  { id: "Q-1043", customer: "Delta LLC", priceList: "Bronze", amount: "$3,400", status: "Draft" },
+  { id: "Q-1042", customer: "Acme Corp", priceList: "Gold", amount: "$2,730", status: "Pending Approval" },
+  { id: "Q-1040", customer: "Nova Retail", priceList: "Silver", amount: "$9,750", status: "Approved" },
+  { id: "Q-1039", customer: "Beta Industries", priceList: "Silver", amount: "$4,800", status: "Negotiation" },
+  { id: "Q-1038", customer: "Acme Corp", priceList: "Gold", amount: "$680", status: "Confirmed" },
+];
+
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(() => localStorage.getItem("dealflow-authenticated") === "true");
   const [currentTab, setCurrentTab] = useState(() => localStorage.getItem("dealflow-authenticated") === "true" ? "dashboard" : "auth");
@@ -79,6 +89,7 @@ function App() {
     total: "$2,730",
     status: "Approval",
   });
+  const [quotations, setQuotations] = useState(initialQuotations);
   const [selectedProduct, setSelectedProduct] = useState({
     id: "PROD-001",
     name: "Laptop Pro 14",
@@ -117,12 +128,28 @@ function App() {
     if ((tab === "invoices" || tab === "invoice-detail") && data) {
       setSelectedInvoice(data);
     }
-    if ((tab === "quotations" || tab === "quotation-detail" || tab === "customer-portal" || tab === "orders") && data) {
+    if ((tab === "quotations" || tab === "quotation-detail" || tab === "new-quotation" || tab === "customer-portal" || tab === "orders") && data) {
       setSelectedQuotation(data);
     }
     if ((tab === "product" || tab === "product-detail") && data) {
       setSelectedProduct(data);
     }
+  };
+
+  const handleSaveQuotation = (quotation) => {
+    const nextNumber = quotations.reduce((highest, item) => {
+      const parsed = Number.parseInt(String(item.id).replace("Q-", ""), 10);
+      return Number.isNaN(parsed) ? highest : Math.max(highest, parsed);
+    }, 1044) + 1;
+    const savedQuotation = {
+      ...quotation,
+      id: `Q-${nextNumber}`,
+      status: "Draft",
+    };
+
+    setQuotations((current) => [savedQuotation, ...current]);
+    setSelectedQuotation(savedQuotation);
+    setCurrentTab("quotations");
   };
 
   const renderContent = () => {
@@ -154,7 +181,9 @@ function App() {
       case "dashboard":
         return <Dashboard onNavigate={handleNavigate} />;
       case "quotations":
-        return <QuotationsPage onNavigate={handleNavigate} />;
+        return <QuotationsPage onNavigate={handleNavigate} quotations={quotations} />;
+      case "new-quotation":
+        return <NewQuotationPage onNavigate={handleNavigate} onSaveQuotation={handleSaveQuotation} />;
       case "quotation-detail":
         return <QuotationDetailPage onNavigate={handleNavigate} quote={selectedQuotation} />;
       case "deal-health":

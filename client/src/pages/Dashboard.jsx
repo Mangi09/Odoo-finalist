@@ -12,7 +12,7 @@ export default function Dashboard({ onNavigate }) {
             <h1 className="welcome-title">Good morning, Atharva.</h1>
             <p className="welcome-subtitle">Central hub, links out to every module below.</p>
           </div>
-          <button className="btn-primary new-quotation" onClick={() => onNavigate && onNavigate('quotations')}>
+          <button className="btn-primary new-quotation" onClick={() => onNavigate && onNavigate('new-quotation')}>
             <Plus size={18} />
             New Quotation
           </button>

@@ -15,6 +15,7 @@ export default function AppLayout({
 }) {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [rightPanelOpen, setRightPanelOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   const handleNavigateWrapper = (tab, data) => {
     setMobileSidebarOpen(false);
@@ -58,10 +59,12 @@ export default function AppLayout({
       )}
 
       {/* 1. Left Persistent Sidebar */}
-      <div className={`layout-sidebar-col ${mobileSidebarOpen ? "mobile-open" : ""}`}>
+      <div className={`layout-sidebar-col ${sidebarCollapsed ? "collapsed" : ""} ${mobileSidebarOpen ? "mobile-open" : ""}`}>
         <Sidebar
           currentTab={currentTab}
           onNavigate={handleNavigateWrapper}
+          collapsed={sidebarCollapsed}
+          onToggleCollapse={() => setSidebarCollapsed((collapsed) => !collapsed)}
         />
       </div>
 
