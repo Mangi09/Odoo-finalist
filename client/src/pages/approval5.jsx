@@ -1,5 +1,18 @@
 import "../App.css";
-
+import {
+  LayoutDashboard,
+  FileText,
+  CheckCircle,
+  Package,
+  RefreshCw,
+  Receipt,
+  HeartPulse,
+  BarChart3,
+  Box,
+  CircleCheck,
+  CircleStar,
+  House
+} from "lucide-react"
 function App() {
   const approvals = [
     {
@@ -32,15 +45,15 @@ function App() {
         <div className="logo">DealFlow360</div>
 
         <div className="nav-links">
-          <button>Dashboard</button>
-          <button>Quotations</button>
-          <button className="active">Approvals</button>
-          <button>Fulfillment</button>
-          <button>Subscriptions</button>
-          <button>Invoices</button>
-          <button>Deal Health</button>
-          <button>Reports</button>
-          <button>Product</button>
+          <button><House />Dashboard</button>
+          <button><CircleStar />Quotations</button>
+          <button className="active"><CircleCheck />Approvals</button>
+          <button><Package />Fulfillment</button>
+          <button><RefreshCw />Subscriptions</button>
+          <button><Receipt />Invoices</button>
+          <button><HeartPulse />Deal Health</button>
+          <button><BarChart3 />Reports</button>
+          <button><Box />Product</button>
         </div>
       </nav>
 
