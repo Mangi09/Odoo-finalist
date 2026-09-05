@@ -1,12 +1,11 @@
 import React from 'react';
-import DashboardLayout from '../components/DashboardLayout';
-import DealHealthHeader from '../components/DealHealthHeader';
-import HealthOverview from '../components/HealthOverview';
-import HealthDistribution from '../components/HealthDistribution';
-import AnomalyList from '../components/AnomalyList';
-import AtRiskDealsTable from '../components/AtRiskDealsTable';
-import AIInsightsPanel from '../components/AIInsightsPanel';
-import '../components/DealHealth.css';
+// import DealHealthHeader from '../components/DealHealthHeader';
+// import HealthOverview from '../components/HealthOverview';
+// import HealthDistribution from '../components/HealthDistribution';
+// import AnomalyList from '../components/AnomalyList';
+// import AtRiskDealsTable from '../components/AtRiskDealsTable';
+// import AIInsightsPanel from '../components/AIInsightsPanel';
+// import '../components/DealHealth.css';
 
 export default function DealHealthPage() {
   
@@ -69,26 +68,12 @@ export default function DealHealthPage() {
   ];
 
   return (
-    <DashboardLayout>
+    <main className="content">
       <div className="deal-health-page">
-        <DealHealthHeader />
-        
-        <HealthOverview />
-        
-        <div className="dh-main-grid">
-          {/* Left Column (Wider) */}
-          <div className="dh-left-col">
-            <HealthDistribution />
-            <AnomalyList anomalies={mockAnomalies} />
-            <AtRiskDealsTable deals={mockAtRiskDeals} />
-          </div>
-          
-          {/* Right Column (Narrower) */}
-          <div className="dh-right-col">
-            <AIInsightsPanel insights={mockInsights} />
-          </div>
+        <div className="info-box" style={{ marginTop: '20px' }}>
+          Deal Health components coming soon.
         </div>
       </div>
-    </DashboardLayout>
+    </main>
   );
 }

@@ -47,26 +47,7 @@ function Products({ onNavigate, onSelectProduct }) {
   ];
 
   return (
-    <div className="app">
-      {/* Internal Header Navigation */}
-      <nav className="navbar">
-        <div className="logo">DealFlow360</div>
-
-        <div className="nav-links">
-          {navItems.map((item) => (
-            <button
-              key={item.id}
-              className={item.id === "products" ? "active" : ""}
-              onClick={() => onNavigate && onNavigate(item.id)}
-            >
-              {item.label}
-            </button>
-          ))}
-        </div>
-      </nav>
-
-      {/* Main Content Area */}
-      <main className="content">
+    <main className="content">
         <h1>Product catalog</h1>
         <p className="subtitle">Every product, variant and price list in one place.</p>
 
@@ -227,7 +208,6 @@ function Products({ onNavigate, onSelectProduct }) {
           </select>
         </div>
       </main>
-    </div>
   );
 }
 

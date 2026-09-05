@@ -1,8 +1,8 @@
 import React from 'react';
-import EcosystemIllustration from '../components/EcosystemIllustration';
-import AuthForm from '../components/AuthForm';
-import Logo from '../components/Logo';
-import '../components/Auth.css';
+// import EcosystemIllustration from '../components/EcosystemIllustration';
+// import AuthForm from '../components/AuthForm';
+// import Logo from '../components/Logo';
+// import '../components/Auth.css';
 
 export default function AuthPage() {
   return (
@@ -10,7 +10,7 @@ export default function AuthPage() {
       {/* Left Side: Brand & Ecosystem */}
       <div className="auth-left">
         <div className="brand-header">
-          <Logo light />
+          {/* <Logo light /> */}
           <span className="brand-label">CONNECTED DEAL ECOSYSTEM</span>
           <h1 className="brand-title">Every deal.<br />One intelligent flow.</h1>
           <p className="brand-desc">
@@ -18,13 +18,15 @@ export default function AuthPage() {
           </p>
         </div>
         <div className="ecosystem-wrapper">
-          <EcosystemIllustration />
+          <div className="info-box">Ecosystem illustration coming soon.</div>
+          {/* <EcosystemIllustration /> */}
         </div>
       </div>
 
       {/* Right Side: Authentication */}
       <div className="auth-right">
-        <AuthForm />
+        <div className="info-box" style={{ margin: '20px' }}>Auth form coming soon.</div>
+        {/* <AuthForm /> */}
       </div>
     </div>
   );

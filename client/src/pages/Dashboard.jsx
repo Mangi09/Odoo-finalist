@@ -1,17 +1,13 @@
 import React from 'react';
 import { Plus, BriefcaseBusiness, TrendingUp, CircleAlert } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
-import DashboardLayout from '../components/DashboardLayout';
-import MetricCard from '../components/MetricCard';
-import ActionRequired from '../components/ActionRequired';
-import QuickActions from '../components/QuickActions';
-import RecentDeals from '../components/RecentDeals';
+// import MetricCard from '../components/MetricCard';
+// import ActionRequired from '../components/ActionRequired';
+// import QuickActions from '../components/QuickActions';
+// import RecentDeals from '../components/RecentDeals';
 
-export default function Dashboard() {
-  const navigate = useNavigate();
-
+export default function Dashboard({ onNavigate }) {
   return (
-    <DashboardLayout>
+    <main className="content">
       {/* Welcome Section */}
       <div className="welcome-section">
         <div>
@@ -19,7 +15,7 @@ export default function Dashboard() {
           <h1 className="welcome-title">Good morning, Atharva.</h1>
           <p className="welcome-subtitle">Here’s what needs your attention across your deals today.</p>
         </div>
-        <button className="btn-primary new-quotation" onClick={() => navigate('/quotations')}>
+        <button className="btn-primary new-quotation" onClick={() => onNavigate && onNavigate('quotations')}>
           <Plus size={18} />
           New Quotation
         </button>
@@ -27,35 +23,14 @@ export default function Dashboard() {
 
       {/* Metrics Section */}
       <div className="metrics-container">
-        <MetricCard 
-          title="Open Deals" 
-          value="24" 
-          description="Across active stages"
-          icon={BriefcaseBusiness}
-        />
-        <MetricCard 
-          title="Pipeline Value" 
-          value="₹18.4L" 
-          description="Active opportunities"
-          icon={TrendingUp}
-        />
-        <MetricCard 
-          title="Action Required" 
-          value="5" 
-          description="Deals need attention"
-          icon={CircleAlert}
-          accentClass="accent-coral"
-        />
+        <div className="info-box" style={{ marginTop: '20px', gridColumn: '1 / -1' }}>
+          Dashboard components coming soon.
+        </div>
       </div>
 
       {/* Main Action Area (Two columns on desktop) */}
       <div className="two-col-layout">
-        <ActionRequired />
-        <QuickActions />
       </div>
-
-      {/* Recent Deals Table */}
-      <RecentDeals />
-    </DashboardLayout>
+    </main>
   );
 }

@@ -10,7 +10,8 @@ import {
   BarChart3,
   Box,
   House,
-  Users
+  Users,
+  LogIn
 } from "lucide-react";
 
 export default function Navbar({ currentTab, onNavigate }) {
@@ -24,7 +25,8 @@ export default function Navbar({ currentTab, onNavigate }) {
     { id: "deal-health", label: "Deal Health", icon: <HeartPulse size={16} /> },
     { id: "reports", label: "Reports", icon: <BarChart3 size={16} /> },
     { id: "product", label: "Product", icon: <Box size={16} /> },
-    { id: "customer-portal", label: "Customer Portal", icon: <Users size={16} /> }
+    { id: "customer-portal", label: "Customer Portal", icon: <Users size={16} /> },
+    { id: "auth", label: "Login / Signup", icon: <LogIn size={16} /> }
   ];
 
   return (

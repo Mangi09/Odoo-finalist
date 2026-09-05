@@ -5,6 +5,12 @@ import Subscriptions from "./pages/Subscriptions";
 import Invoices from "./pages/Invoices";
 import CustomerPortal from "./pages/CustomerPortal";
 import FulfillmentList from "./pages/FulfillmentList";
+import Dashboard from "./pages/Dashboard";
+import QuotationsPage from "./pages/QuotationsPage";
+import DealHealthPage from "./pages/DealHealthPage";
+import AdminDashboardPage from "./pages/AdminDashboardPage";
+import Products from "./pages/Products";
+import AuthPage from "./pages/AuthPage";
 import FulfillmentDetail from "./pages/FulfillmentDetail";
 import Navbar from "./components/Navbar";
 import './App.css';
@@ -49,6 +55,18 @@ function App() {
         return <Invoices onNavigate={handleNavigate} />;
       case "customer-portal":
         return <CustomerPortal onNavigate={handleNavigate} />;
+      case "dashboard":
+        return <Dashboard onNavigate={handleNavigate} />;
+      case "quotations":
+        return <QuotationsPage onNavigate={handleNavigate} />;
+      case "deal-health":
+        return <DealHealthPage onNavigate={handleNavigate} />;
+      case "reports":
+        return <AdminDashboardPage onNavigate={handleNavigate} />;
+      case "product":
+        return <Products onNavigate={handleNavigate} />;
+      case "auth":
+        return <AuthPage onNavigate={handleNavigate} />;
       case "billing-detail":
         return (
           <main className="content">
