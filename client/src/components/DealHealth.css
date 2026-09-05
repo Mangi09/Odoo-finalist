@@ -1,0 +1,425 @@
+/* Deal Health Page Layout */
+.deal-health-page {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  width: 100%;
+}
+
+/* Header */
+.dh-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  animation: fadeUp 0.3s ease;
+}
+
+.dh-header-left {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.dh-title {
+  font-size: 28px;
+  color: var(--text-main);
+  margin-bottom: 4px;
+}
+
+.dh-subtitle {
+  font-size: 15px;
+  color: var(--text-muted);
+  max-width: 600px;
+}
+
+.dh-header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.dh-select {
+  padding: 8px 32px 8px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background-color: var(--white);
+  font-size: 13px;
+  color: var(--text-main);
+  outline: none;
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  background-size: 14px;
+}
+
+/* Card Base */
+.dh-card {
+  background-color: var(--white);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  animation: fadeUp 0.4s ease;
+}
+
+.dh-card-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--blue-slate);
+  margin-bottom: 8px;
+}
+
+/* KPI Overview */
+.dh-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+}
+
+.dh-kpi-card {
+  background-color: var(--white);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.dh-kpi-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.dh-kpi-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 12px;
+}
+
+.dh-kpi-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dh-kpi-icon.healthy { background-color: rgba(79, 109, 122, 0.1); color: var(--blue-slate); }
+.dh-kpi-icon.warning { background-color: rgba(245, 158, 11, 0.1); color: #f59e0b; }
+.dh-kpi-icon.critical { background-color: rgba(240, 128, 128, 0.1); color: var(--light-coral-dark); }
+.dh-kpi-icon.revenue { background-color: rgba(158, 120, 143, 0.1); color: var(--dusty-mauve); }
+
+.dh-kpi-value {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--text-main);
+  margin-bottom: 4px;
+}
+
+.dh-kpi-trend {
+  font-size: 12px;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.dh-kpi-trend.positive { color: #10b981; }
+.dh-kpi-trend.negative { color: var(--light-coral-dark); }
+
+/* Health Distribution */
+.dh-dist-bar {
+  display: flex;
+  height: 16px;
+  border-radius: 8px;
+  overflow: hidden;
+  margin: 16px 0;
+}
+
+.dh-dist-segment {
+  height: 100%;
+  transition: width 0.5s ease;
+}
+
+.dh-dist-segment.healthy { background-color: var(--blue-slate); }
+.dh-dist-segment.attention { background-color: #f59e0b; }
+.dh-dist-segment.risk { background-color: var(--light-coral); }
+.dh-dist-segment.critical { background-color: var(--light-coral-dark); }
+
+.dh-dist-legend {
+  display: flex;
+  justify-content: space-between;
+}
+
+.dh-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dh-legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.dh-legend-text {
+  font-size: 13px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.dh-legend-count {
+  font-size: 14px;
+  color: var(--text-main);
+  font-weight: 600;
+  margin-left: 4px;
+}
+
+/* Two Column Main Content */
+.dh-main-grid {
+  display: grid;
+  grid-template-columns: 2.5fr 1fr;
+  gap: 24px;
+  align-items: start;
+}
+
+.dh-left-col {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* Anomalies List */
+.dh-anomaly-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.dh-anomaly-card {
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 16px;
+  display: flex;
+  gap: 16px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.dh-anomaly-card:hover {
+  border-color: var(--blue-slate);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+}
+
+.dh-anomaly-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.dh-anomaly-icon.high { background-color: rgba(240, 128, 128, 0.1); color: var(--light-coral-dark); }
+.dh-anomaly-icon.medium { background-color: rgba(245, 158, 11, 0.1); color: #f59e0b; }
+.dh-anomaly-icon.critical { background-color: rgba(220, 38, 38, 0.1); color: #dc2626; }
+
+.dh-anomaly-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dh-anomaly-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.dh-anomaly-deal {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-main);
+  margin-bottom: 2px;
+}
+
+.dh-anomaly-customer {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.dh-severity-badge {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 4px 10px;
+  border-radius: 20px;
+}
+
+.dh-severity-badge.high { background-color: rgba(240, 128, 128, 0.1); color: var(--light-coral-dark); }
+.dh-severity-badge.medium { background-color: rgba(245, 158, 11, 0.1); color: #f59e0b; }
+.dh-severity-badge.critical { background-color: #fee2e2; color: #dc2626; }
+
+.dh-anomaly-desc {
+  font-size: 14px;
+  color: var(--text-main);
+  background-color: #f8fafc;
+  padding: 10px 12px;
+  border-radius: 6px;
+  border-left: 3px solid var(--border-color);
+}
+
+.dh-anomaly-desc.high { border-left-color: var(--light-coral-dark); }
+.dh-anomaly-desc.medium { border-left-color: #f59e0b; }
+.dh-anomaly-desc.critical { border-left-color: #dc2626; }
+
+.dh-anomaly-action {
+  font-size: 13px;
+  color: var(--blue-slate);
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+/* At Risk Table */
+.dh-table-wrapper {
+  overflow-x: auto;
+}
+
+.dh-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.dh-table th {
+  text-align: left;
+  padding: 12px 16px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--border-color);
+  background-color: #f8fafc;
+}
+
+.dh-table td {
+  padding: 16px;
+  font-size: 14px;
+  color: var(--text-main);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.dh-table tr:last-child td {
+  border-bottom: none;
+}
+
+.dh-table tr:hover {
+  background-color: var(--lavender-light);
+  cursor: pointer;
+}
+
+.dh-table-deal {
+  font-weight: 600;
+  color: var(--blue-slate);
+  display: block;
+}
+
+.dh-table-customer {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.dh-health-score {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dh-score-bar {
+  width: 60px;
+  height: 6px;
+  background-color: var(--lavender);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.dh-score-fill {
+  height: 100%;
+  border-radius: 3px;
+}
+
+/* AI Insights */
+.dh-insights-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.dh-insight-item {
+  display: flex;
+  gap: 12px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.dh-insight-item:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.dh-insight-icon {
+  color: var(--dusty-mauve);
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+.dh-insight-text {
+  font-size: 13px;
+  color: var(--text-main);
+  line-height: 1.5;
+}
+
+/* Responsive */
+@media (max-width: 1200px) {
+  .dh-kpi-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 1024px) {
+  .dh-main-grid {
+    grid-template-columns: 1fr;
+  }
+  .dh-dist-legend {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+}
+
+@media (max-width: 768px) {
+  .dh-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+  }
+  .dh-kpi-grid {
+    grid-template-columns: 1fr;
+  }
+}

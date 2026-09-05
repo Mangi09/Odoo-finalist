@@ -1,0 +1,746 @@
+/* =========================================================================
+   Landing Page Global & Structural Styles
+   ========================================================================= */
+
+.landing-page {
+  font-family: var(--font-family, system-ui, -apple-system, sans-serif);
+  background-color: var(--white);
+  color: var(--text-main);
+  overflow-x: hidden;
+  width: 100%;
+}
+
+.landing-section {
+  padding: 96px 24px;
+  max-width: 1200px;
+  margin: 0 auto;
+  position: relative;
+}
+
+.landing-title {
+  font-size: 40px;
+  font-weight: 700;
+  color: var(--blue-slate-dark, #3b535d);
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  margin-bottom: 16px;
+}
+
+.landing-subtitle {
+  font-size: 18px;
+  color: var(--text-muted);
+  line-height: 1.5;
+  max-width: 600px;
+  margin-bottom: 48px;
+}
+
+.text-center {
+  text-align: center;
+}
+.text-center .landing-subtitle {
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* =========================================================================
+   Navbar
+   ========================================================================= */
+
+.landing-nav {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background-color: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--border-color);
+  padding: 16px 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: padding 0.3s ease;
+}
+
+.landing-nav-logo {
+  font-weight: 800;
+  font-size: 20px;
+  color: var(--blue-slate);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+}
+
+.landing-nav-links {
+  display: flex;
+  gap: 32px;
+}
+
+.landing-nav-link {
+  color: var(--text-main);
+  text-decoration: none;
+  font-weight: 500;
+  font-size: 14px;
+  transition: color 0.2s;
+}
+.landing-nav-link:hover {
+  color: var(--blue-slate);
+}
+
+.landing-nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.btn-nav-login {
+  color: var(--text-main);
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 14px;
+  transition: color 0.2s;
+}
+.btn-nav-login:hover {
+  color: var(--blue-slate);
+}
+
+.btn-primary.nav-btn {
+  padding: 8px 16px;
+  font-size: 14px;
+  text-decoration: none;
+  display: inline-block;
+}
+
+/* =========================================================================
+   Hero Section
+   ========================================================================= */
+
+.hero-section {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 64px;
+  align-items: center;
+  padding: 120px 24px 80px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.hero-eyebrow {
+  color: var(--dusty-mauve);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  margin-bottom: 16px;
+  display: inline-block;
+  animation: fadeUp 0.6s ease;
+}
+
+.hero-title {
+  font-size: 56px;
+  font-weight: 800;
+  color: var(--text-main);
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+  margin-bottom: 24px;
+  animation: fadeUp 0.7s ease;
+}
+
+.hero-title span {
+  color: var(--blue-slate);
+}
+
+.hero-desc {
+  font-size: 20px;
+  color: var(--text-muted);
+  line-height: 1.5;
+  margin-bottom: 40px;
+  max-width: 500px;
+  animation: fadeUp 0.8s ease;
+}
+
+.hero-actions {
+  display: flex;
+  gap: 16px;
+  animation: fadeUp 0.9s ease;
+}
+
+.btn-secondary.demo-btn {
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 24px;
+  font-size: 15px;
+}
+
+.hero-illustration-container {
+  position: relative;
+  height: 500px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fadeUp 1s ease;
+}
+
+/* Ecosystem Illustration */
+.eco-center-node {
+  background-color: var(--white);
+  border: 1px solid var(--lavender);
+  border-radius: 20px;
+  padding: 32px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  box-shadow: 0 20px 40px rgba(79, 109, 122, 0.1);
+  z-index: 10;
+  position: relative;
+}
+
+.eco-center-logo {
+  width: 48px;
+  height: 48px;
+  background-color: var(--blue-slate);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--white);
+}
+
+.eco-center-text {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--blue-slate-dark);
+}
+
+.eco-orbit-node {
+  position: absolute;
+  background-color: var(--white);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.05);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-main);
+  z-index: 5;
+  animation: float 6s ease-in-out infinite;
+}
+
+.eco-orbit-icon {
+  color: var(--dusty-mauve);
+}
+
+.eco-line {
+  position: absolute;
+  border-top: 2px dashed var(--lavender);
+  z-index: 1;
+}
+
+/* Animations */
+@keyframes float {
+  0% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+  100% { transform: translateY(0px); }
+}
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* =========================================================================
+   Trust Strip
+   ========================================================================= */
+
+.trust-strip {
+  background-color: var(--lavender-light);
+  padding: 40px 24px;
+  border-top: 1px solid var(--lavender);
+  border-bottom: 1px solid var(--lavender);
+  text-align: center;
+}
+
+.trust-text {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--dusty-mauve);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+/* =========================================================================
+   Feature Section
+   ========================================================================= */
+
+.feature-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 32px;
+}
+
+.feature-card {
+  background-color: var(--white);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  padding: 32px;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.02);
+}
+
+.feature-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 24px rgba(79, 109, 122, 0.08);
+}
+
+.feature-icon-wrapper {
+  width: 48px;
+  height: 48px;
+  background-color: var(--lavender-light);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--blue-slate);
+  margin-bottom: 24px;
+  transition: transform 0.3s ease;
+}
+
+.feature-card:hover .feature-icon-wrapper {
+  transform: scale(1.05);
+}
+
+.feature-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-main);
+  margin-bottom: 12px;
+}
+
+.feature-desc {
+  font-size: 15px;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+/* =========================================================================
+   Workflow Section
+   ========================================================================= */
+
+.workflow-container {
+  display: flex;
+  justify-content: space-between;
+  position: relative;
+  padding: 40px 0;
+}
+
+.workflow-container::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 40px;
+  right: 40px;
+  height: 2px;
+  background-color: var(--lavender);
+  z-index: 1;
+  transform: translateY(-50%);
+}
+
+.workflow-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  z-index: 2;
+  position: relative;
+  background-color: var(--white);
+  padding: 0 16px;
+}
+
+.workflow-icon {
+  width: 56px;
+  height: 56px;
+  background-color: var(--white);
+  border: 2px solid var(--blue-slate);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--blue-slate);
+  box-shadow: 0 4px 12px rgba(79, 109, 122, 0.1);
+  transition: transform 0.2s ease;
+}
+
+.workflow-step:hover .workflow-icon {
+  transform: scale(1.1);
+  background-color: var(--blue-slate);
+  color: var(--white);
+}
+
+.workflow-number {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--dusty-mauve);
+  letter-spacing: 1px;
+}
+
+.workflow-label {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+/* =========================================================================
+   Benefits Section
+   ========================================================================= */
+
+.benefits-section {
+  background-color: var(--lavender-light);
+  border-top: 1px solid var(--lavender);
+  border-bottom: 1px solid var(--lavender);
+}
+
+.benefits-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 64px;
+  align-items: center;
+}
+
+.benefit-item {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 32px;
+}
+
+.benefit-item:last-child {
+  margin-bottom: 0;
+}
+
+.benefit-icon {
+  color: var(--light-coral);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.benefit-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-main);
+  margin-bottom: 8px;
+}
+
+.benefit-desc {
+  font-size: 15px;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.benefits-visual {
+  position: relative;
+  height: 400px;
+  background-color: var(--white);
+  border-radius: 24px;
+  border: 1px solid var(--lavender);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.05);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* =========================================================================
+   Why DealFlow Section (Split)
+   ========================================================================= */
+
+.why-split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 64px;
+  align-items: center;
+}
+
+.why-large-text {
+  font-size: 48px;
+  font-weight: 800;
+  color: var(--text-main);
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+}
+
+.why-right-content {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+.why-desc {
+  font-size: 20px;
+  color: var(--blue-slate);
+  line-height: 1.5;
+  font-weight: 500;
+}
+
+.why-cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.why-card {
+  background-color: var(--white);
+  border: 1px solid var(--border-color);
+  padding: 16px;
+  border-radius: 12px;
+  font-weight: 600;
+  color: var(--text-main);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* =========================================================================
+   Testimonials
+   ========================================================================= */
+
+.testimonial-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 32px;
+}
+
+.testimonial-card {
+  background-color: var(--white);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  padding: 32px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.testimonial-quote {
+  font-size: 16px;
+  color: var(--text-main);
+  line-height: 1.6;
+  font-style: italic;
+  margin-bottom: 24px;
+}
+
+.testimonial-author {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.author-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background-color: var(--lavender);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--blue-slate);
+  font-weight: 700;
+}
+
+.author-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.author-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.author-role {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+/* =========================================================================
+   CTA Section
+   ========================================================================= */
+
+.cta-section {
+  text-align: center;
+  padding: 120px 24px;
+  background-color: var(--white);
+  position: relative;
+  overflow: hidden;
+}
+
+.cta-content {
+  position: relative;
+  z-index: 2;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.cta-actions {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  margin-top: 32px;
+}
+
+/* Background Abstract elements for CTA */
+.cta-bg-line {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background-color: var(--lavender);
+  z-index: 1;
+}
+.cta-bg-circle {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 600px;
+  height: 600px;
+  border: 1px dashed var(--lavender);
+  border-radius: 50%;
+  z-index: 1;
+}
+
+/* =========================================================================
+   Footer
+   ========================================================================= */
+
+.landing-footer {
+  background-color: #f8fafc;
+  border-top: 1px solid var(--border-color);
+  padding: 64px 24px 32px;
+}
+
+.footer-content {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr;
+  gap: 64px;
+  margin-bottom: 64px;
+}
+
+.footer-brand p {
+  font-size: 14px;
+  color: var(--text-muted);
+  margin-top: 16px;
+  max-width: 300px;
+  line-height: 1.5;
+}
+
+.footer-nav h4 {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-main);
+  margin-bottom: 16px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.footer-nav ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.footer-nav a {
+  font-size: 14px;
+  color: var(--text-muted);
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.footer-nav a:hover {
+  color: var(--blue-slate);
+}
+
+.footer-bottom {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding-top: 32px;
+  border-top: 1px solid var(--border-color);
+  font-size: 13px;
+  color: var(--text-muted);
+  display: flex;
+  justify-content: space-between;
+}
+
+/* =========================================================================
+   Responsive Adjustments
+   ========================================================================= */
+
+@media (max-width: 1024px) {
+  .hero-section {
+    gap: 32px;
+  }
+  .feature-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .workflow-container::before {
+    display: none;
+  }
+  .workflow-container {
+    flex-direction: column;
+    gap: 32px;
+    align-items: flex-start;
+  }
+  .workflow-step {
+    flex-direction: row;
+    padding: 0;
+  }
+  .why-split {
+    grid-template-columns: 1fr;
+    gap: 32px;
+  }
+  .benefits-grid {
+    grid-template-columns: 1fr;
+  }
+  .testimonial-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .hero-section {
+    grid-template-columns: 1fr;
+    padding: 80px 24px 40px;
+  }
+  .hero-title {
+    font-size: 40px;
+  }
+  .landing-nav-links {
+    display: none;
+  }
+  .feature-grid {
+    grid-template-columns: 1fr;
+  }
+  .why-large-text {
+    font-size: 36px;
+  }
+  .why-cards {
+    grid-template-columns: 1fr;
+  }
+  .testimonial-grid {
+    grid-template-columns: 1fr;
+  }
+  .footer-content {
+    grid-template-columns: 1fr;
+    gap: 32px;
+  }
+  .cta-actions {
+    flex-direction: column;
+  }
+}
