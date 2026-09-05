@@ -1,3 +1,5 @@
+@import url("https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;500;600;700&display=swap");
+
 * {
   box-sizing: border-box;
   margin: 0;
@@ -5,9 +7,9 @@
 }
 
 body {
-  font-family: Arial, Helvetica, sans-serif;
-  background: #ffffff;
-  color: #222;
+  font-family: "Nunito", sans-serif;
+  background: #fcfcfc;
+  color: #2c3e50;
 }
 
 .app {
@@ -15,13 +17,11 @@ body {
   display: flex;
   background-color: var(--lavender-light, #f8f9fc);
 }
-
 .app-auth-wrapper {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
 }
-
 .main-content-wrapper {
   flex: 1;
   display: flex;
@@ -30,10 +30,7 @@ body {
   height: 100vh;
 }
 
-/* =========================
-   SIDEBAR
-========================= */
-
+/* ========================= SIDEBAR ========================= */
 .sidebar {
   width: 260px;
   background-color: var(--white, #ffffff);
@@ -122,50 +119,102 @@ body {
   color: #c95c5c;
 }
 
-/* =========================
-   MAIN CONTENT
-========================= */
+/* ========================= NAVBAR ========================= */
+.navbar {
+  height: 80px;
+  background: #714b67;
+  display: flex;
+  align-items: center;
+  padding: 0 24px;
+  color: white;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
 
+.logo {
+  font-size: 18px;
+  font-weight: 600;
+  min-width: 200px;
+  letter-spacing: 0.5px;
+}
+
+.nav-links {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+  flex: 1;
+}
+
+.nav-links a {
+  height: auto;
+  padding: 8px 12px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  text-decoration: none;
+}
+
+/* Remove button-box appearance */
+.nav-links a:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  opacity: 1;
+}
+
+/* Active item */
+.nav-links a.active {
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
+  border: none;
+  font-weight: 600;
+}
+
+/* ========================= MAIN CONTENT ========================= */
 .content {
-  min-height: calc(100vh - 66px);
-  border: 2px solid #c5c5c5;
-  border-top: none;
-  border-radius: 0 0 15px 15px;
-  padding: 13px 30px 40px;
+  min-height: calc(100vh - 80px);
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 40px 30px;
 }
 
 h1 {
-  font-size: 23px;
-  font-weight: 400;
-  margin-bottom: 5px;
+  font-size: 26px;
+  font-weight: 600;
+  color: #2c3e50;
+  margin-bottom: 8px;
 }
 
 .subtitle {
-  font-size: 13px;
-  color: #555;
-  margin-bottom: 17px;
+  font-size: 14px;
+  color: #718096;
+  margin-bottom: 32px;
 }
 
-/* =========================
-   STATUS CARDS
-========================= */
-
+/* ========================= STATUS CARDS ========================= */
 .status-container {
   display: flex;
-  gap: 12px;
-  margin-bottom: 19px;
+  gap: 16px;
+  margin-bottom: 32px;
 }
 
 .status {
-  width: 103px;
-  height: 31px;
-  border-radius: 7px;
+  padding: 8px 16px;
+  border-radius: 20px;
   display: flex;
   justify-content: center;
   align-items: center;
   color: #fff;
-  font-size: 12px;
-  border: 1px solid #222;
+  font-size: 13px;
+  font-weight: 500;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .pending {
@@ -180,89 +229,86 @@ h1 {
   background: #299b45;
 }
 
-/* =========================
-   TABLE
-========================= */
-
+/* ========================= TABLE ========================= */
 .table-wrapper {
   width: 100%;
   overflow-x: auto;
-  border-radius: 0 0 22px 22px;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+  margin-bottom: 24px;
 }
 
 table {
   width: 100%;
   border-collapse: collapse;
-  border: 1px solid #777;
-  font-size: 12px;
+  font-size: 15px;
 }
 
+/* Softer table header */
 thead {
-  background: #e8ebed;
+  background: rgba(113, 75, 103, 0.12);
 }
 
 th {
   text-align: left;
-  font-weight: 400;
-  height: 29px;
-  padding: 6px 10px;
-  border-bottom: 1px solid #888;
+  font-weight: 700;
+  color: #2d3748;
+  padding: 16px 20px;
+  border-bottom: 2px solid #e2e8f0;
 }
 
 td {
-  height: 29px;
-  padding: 6px 10px;
-  border-bottom: 1px solid #d0d0d0;
+  padding: 16px 20px;
+  border-bottom: 1px solid #e2e8f0;
+  color: #1a202c;
 }
 
 tbody tr {
   cursor: pointer;
+  transition: background 0.2s ease;
 }
 
 tbody tr:hover {
-  background: #f4f7f9;
+  background: #f1f5f9;
 }
 
 tbody tr:last-child td {
   border-bottom: none;
 }
 
-/* =========================
-   INFORMATION BOX
-========================= */
-
+/* ========================= INFORMATION BOX ========================= */
 .info-box {
-  margin-top: 20px;
-  height: 42px;
-  border: 1px solid #555;
-  border-radius: 10px;
-  background: #fff9dc;
+  margin-top: 24px;
+  padding: 16px 20px;
+  border-radius: 8px;
+  background: #f0f4f8;
+  color: #4a5568;
+  font-size: 13px;
   display: flex;
   align-items: center;
-  padding: 0 13px;
-  font-size: 12px;
-  color: #624d00;
+  border-left: 4px solid #714b67;
 }
 
-/* =========================
-   FILTER
-========================= */
-
+/* ========================= FILTER ========================= */
 .filter-section {
-  margin-top: 18px;
-  width: 215px;
-  height: 45px;
-  border: 1px solid #555;
-  border-radius: 9px;
-  display: flex;
+  margin-top: 24px;
+  width: auto;
+  display: inline-flex;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-size: 13px;
+  background: #fff;
   align-items: center;
   padding: 0 14px;
   font-size: 13px;
 }
 
 .filter-section label {
-  color: #555;
-  margin-right: 4px;
+  color: #718096;
+  margin-right: 8px;
+  font-weight: 500;
 }
 
 .filter-section select {
@@ -270,13 +316,30 @@ tbody tr:last-child td {
   outline: none;
   background: transparent;
   font-size: 13px;
-  color: #555;
+  color: #2c3e50;
   cursor: pointer;
+  font-weight: 500;
 }
 
-/* =========================
-   RESPONSIVE
-========================= */
+/* ========================= RESPONSIVE ========================= */
+@media (max-width: 1440px) {
+  .navbar {
+    padding: 0 20px;
+  }
+
+  .nav-links {
+    gap: 12px;
+  }
+
+  .nav-links a {
+    padding: 6px 8px;
+    font-size: 12px;
+  }
+
+  .logo {
+    min-width: 150px;
+  }
+}
 
 @media (max-width: 1000px) {
   .app {
@@ -308,15 +371,34 @@ tbody tr:last-child td {
   .main-content-wrapper {
     height: auto;
   }
+  
+  .navbar {
+    height: auto;
+    padding: 10px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .logo {
+    min-width: auto;
+  }
+
+  .nav-links {
+    width: 100%;
+    overflow-x: auto;
+    padding-bottom: 3px;
+    gap: 20px;
+  }
 
   .content {
-    padding: 15px;
+    padding: 20px 16px;
   }
 }
 
 @media (max-width: 600px) {
   .status-container {
-    flex-wrap: wrap;
+    flex-direction: column;
   }
 
   .info-box {
@@ -326,6 +408,6 @@ tbody tr:last-child td {
   }
 
   table {
-    min-width: 700px;
+    min-width: 640px;
   }
 }
