@@ -2,7 +2,13 @@ const mongoose = require('mongoose');
 
 const subscriptionSchema = new mongoose.Schema(
   {
-    quotationItemId: {
+    salesOrderId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'SalesOrder',
+      default: null,
+      index: true,
+    },
+    salesOrderItemId: {
       type: mongoose.Schema.Types.ObjectId,
       default: null,
     },

@@ -9,5 +9,6 @@ router.post('/', optionalAuth, quotationController.createQuotation);
 router.put('/:id', optionalAuth, quotationController.updateQuotation);
 router.post('/:id/items', optionalAuth, quotationController.addItem);
 router.post('/:id/submit', optionalAuth, quotationController.submitQuotation);
+router.post('/:id/accept', optionalAuth, quotationController.acceptQuotation);
 
 module.exports = router;

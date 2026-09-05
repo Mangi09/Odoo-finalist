@@ -1,6 +1,7 @@
 const DealHealth = require('../models/DealHealth');
 const Quotation = require('../models/Quotation');
-const { recalculate } = require('../services/dealHealthService');
+const SalesOrder = require('../models/SalesOrder');
+const { recalculate, recalculateSalesOrder } = require('../services/dealHealthService');
 const ApiResponse = require('../utils/apiResponse');
 
 /**
@@ -11,16 +12,29 @@ exports.getDealHealthDashboard = async (req, res, next) => {
   try {
     // Recalculate health for all active quotations
     const activeQuotations = await Quotation.find({
-      status: { $nin: ['PAID', 'CANCELLED'] }
-    }).populate('customerId');
+      status: { $nin: ['ACCEPTED', 'REJECTED', 'CANCELLED'] }
+    });
 
     for (const q of activeQuotations) {
       await recalculate(q._id);
     }
 
+    // Recalculate health for all active sales orders
+    const activeSalesOrders = await SalesOrder.find({
+      status: { $nin: ['PAID', 'CLOSED', 'CANCELLED'] }
+    });
+
+    for (const so of activeSalesOrders) {
+      await recalculateSalesOrder(so._id);
+    }
+
     const allHealth = await DealHealth.find()
       .populate({
         path: 'quotationId',
+        populate: { path: 'customerId' }
+      })
+      .populate({
+        path: 'salesOrderId',
         populate: { path: 'customerId' }
       })
       .sort({ score: 1 });
@@ -33,13 +47,15 @@ exports.getDealHealthDashboard = async (req, res, next) => {
     const anomalies = [];
     allHealth.filter(h => h.riskFactors && h.riskFactors.length > 0).slice(0, 5).forEach(h => {
       const q = h.quotationId || {};
-      const cust = q.customerId || {};
+      const so = h.salesOrderId || {};
+      const cust = q.customerId || so.customerId || {};
       const primaryRisk = h.riskFactors[0] || 'Unusual inactivity or margin drop';
+      const dealTitle = so.orderNumber || q.title || `${cust.name || 'Deal'} Order`;
 
       anomalies.push({
         id: h._id,
-        deal: q.title || `${cust.name || 'Deal'} Order`,
-        customer: cust.name || 'Acme Corporation',
+        deal: dealTitle,
+        customer: cust.name || 'Customer Corp',
         severity: h.status === 'CRITICAL' ? 'Critical' : (h.status === 'AT_RISK' ? 'High' : 'Medium'),
         description: primaryRisk,
         recommendation: h.status === 'CRITICAL'
@@ -51,17 +67,21 @@ exports.getDealHealthDashboard = async (req, res, next) => {
     // At-Risk Deals Table
     const atRiskDeals = allHealth.map(h => {
       const q = h.quotationId || {};
-      const cust = q.customerId || {};
+      const so = h.salesOrderId || {};
+      const cust = q.customerId || so.customerId || {};
       const riskLabel = h.score >= 70 ? 'Low' : (h.score >= 40 ? 'Medium' : 'High');
+      const dealTitle = so.orderNumber || q.title || `${cust.name || 'Enterprise'} Renewal`;
+      const stage = so.status || q.status || 'Approval';
+      const updatedAt = so.updatedAt || q.updatedAt || h.updatedAt;
 
       return {
         id: h._id,
-        deal: q.title || `${cust.name || 'Enterprise'} Renewal`,
+        deal: dealTitle,
         customer: cust.name || 'Customer Corp',
-        stage: q.status || 'Approval',
+        stage,
         healthScore: h.score,
         risk: riskLabel,
-        lastActivity: q.updatedAt ? `${Math.floor((Date.now() - new Date(q.updatedAt).getTime()) / (1000 * 60 * 60 * 24))} days ago` : '2 days ago'
+        lastActivity: updatedAt ? `${Math.floor((Date.now() - new Date(updatedAt).getTime()) / (1000 * 60 * 60 * 24))} days ago` : '2 days ago'
       };
     });
 
@@ -90,8 +110,11 @@ exports.getDealHealthDashboard = async (req, res, next) => {
  */
 exports.recalculateScore = async (req, res, next) => {
   try {
-    const health = await recalculate(req.params.quotationId);
-    if (!health) return ApiResponse.notFound(res, 'Quotation not found');
+    let health = await recalculate(req.params.quotationId);
+    if (!health) {
+      health = await recalculateSalesOrder(req.params.quotationId);
+    }
+    if (!health) return ApiResponse.notFound(res, 'Quotation or SalesOrder not found');
     return ApiResponse.success(res, health);
   } catch (err) {
     next(err);

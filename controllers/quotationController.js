@@ -19,10 +19,8 @@ function formatQuotationListItem(q) {
     SENT_TO_CUSTOMER: 'Sent',
     NEGOTIATION: 'Negotiation',
     RE_APPROVAL: 'Re-Approval',
+    ACCEPTED: 'Accepted',
     CONFIRMED: 'Accepted',
-    FULFILLMENT: 'Fulfillment',
-    BILLED: 'Billed',
-    PAID: 'Paid',
     REJECTED: 'Rejected',
     CANCELLED: 'Cancelled'
   };
@@ -50,7 +48,7 @@ exports.getQuotations = async (req, res, next) => {
     const filter = {};
 
     if (status && status !== 'All') {
-      filter.status = status.toUpperCase();
+      filter.status = status.toUpperCase() === 'CONFIRMED' ? 'ACCEPTED' : status.toUpperCase();
     }
     if (customerId) filter.customerId = customerId;
 
@@ -90,7 +88,6 @@ exports.getQuotationById = async (req, res, next) => {
         .populate('salespersonId')
         .populate('items.productId');
     } else {
-      // Find by matching last 4 or 5 chars or custom id
       const all = await Quotation.find()
         .populate('customerId')
         .populate('salespersonId')
@@ -102,13 +99,12 @@ exports.getQuotationById = async (req, res, next) => {
       return ApiResponse.notFound(res, 'Quotation not found');
     }
 
-    // Fetch quotation history / activities
     const histories = await QuotationHistory.find({ quotationId: quotation._id })
       .populate('actorId')
       .sort({ createdAt: 1 });
 
     const activities = histories.map(h => ({
-      title: h.action || `Status changed to ${h.toStatus}`,
+      title: h.action || `Status changed to ${h.newValue || h.toStatus}`,
       time: new Date(h.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     }));
 
@@ -123,7 +119,7 @@ exports.getQuotationById = async (req, res, next) => {
       customer: {
         _id: cust._id,
         name: cust.name || 'Acme Corporation',
-        contact: cust.contactPerson || 'Contact Person',
+        contact: cust.contactPerson || cust.contactName || 'Contact Person',
         email: cust.email || 'contact@client.com',
         phone: cust.phone || '+91 98765 43210',
         category: cust.tierId ? 'Enterprise' : 'Standard'
@@ -145,6 +141,7 @@ exports.getQuotationById = async (req, res, next) => {
         unitPrice: it.unitPrice,
         discountPercent: it.discountPercent || 0,
         lineTotal: it.lineTotal,
+        lineMargin: it.lineMargin || 0,
         isRecommendation: it.isRecommendation || false
       })),
       activities: activities.length > 0 ? activities : [
@@ -159,7 +156,7 @@ exports.getQuotationById = async (req, res, next) => {
 };
 
 /**
- * Helper to calculate quotation items totals and margin
+ * Helper to calculate quotation items totals and margin dynamically across all items
  */
 async function calculateItems(items) {
   let totalAmount = 0;
@@ -169,18 +166,19 @@ async function calculateItems(items) {
   for (const it of items) {
     const product = await Product.findById(it.productId);
     const unitPrice = it.unitPrice !== undefined ? it.unitPrice : (product ? product.sellingPrice : 0);
-    const costPrice = product ? (product.costPrice || 0) : 0;
+    const costPrice = product ? (product.costPrice || product.cost || 0) : 0;
     const qty = it.qty || it.quantity || 1;
     const discountPercent = it.discountPercent || 0;
 
     const discountedUnit = unitPrice * (1 - discountPercent / 100);
-    const lineTotal = discountedUnit * qty;
-    const lineMargin = (discountedUnit - costPrice) * qty;
+    const lineTotal = Math.round(discountedUnit * qty);
+    const lineMargin = Math.round((discountedUnit - costPrice) * qty);
 
     totalAmount += lineTotal;
     totalMargin += lineMargin;
 
     calculatedItems.push({
+      _id: it._id,
       productId: it.productId,
       qty,
       unitPrice,
@@ -201,7 +199,6 @@ exports.createQuotation = async (req, res, next) => {
   try {
     const { customerId, salespersonId, items = [], title } = req.body;
     
-    // Default salesperson to first user or current auth user
     const finalSalespersonId = salespersonId || req.user?._id || (await User.findOne())?._id;
     const customer = await Customer.findById(customerId);
     if (!customer) {
@@ -226,8 +223,8 @@ exports.createQuotation = async (req, res, next) => {
       quotationId: quotation._id,
       actorId: finalSalespersonId,
       action: 'Quotation created in DRAFT',
-      fromStatus: 'DRAFT',
-      toStatus: 'DRAFT'
+      oldValue: null,
+      newValue: 'DRAFT'
     });
 
     return ApiResponse.created(res, quotation);
@@ -269,7 +266,6 @@ exports.updateQuotation = async (req, res, next) => {
 
 /**
  * POST /api/v1/quotations/:id/submit
- * Evaluates discount limits and either approves or sends to PENDING_APPROVAL
  */
 exports.submitQuotation = async (req, res, next) => {
   try {
@@ -316,6 +312,39 @@ exports.addItem = async (req, res, next) => {
     await quotation.save();
 
     return ApiResponse.success(res, quotation);
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * POST /api/v1/quotations/:id/accept
+ * Accepts quotation and generates immutable SalesOrder
+ */
+exports.acceptQuotation = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    let quotation;
+    if (id.match(/^[0-9a-fA-F]{24}$/)) {
+      quotation = await Quotation.findById(id).populate('items.productId');
+    } else {
+      const all = await Quotation.find().populate('items.productId');
+      quotation = all.find(q => `Q-${q._id.toString().slice(-4).toUpperCase()}` === id.toUpperCase());
+    }
+
+    if (!quotation) {
+      return ApiResponse.notFound(res, 'Quotation not found');
+    }
+
+    const actorId = req.user?._id || quotation.salespersonId || quotation.customerId;
+    const { createSalesOrderFromQuotation } = require('../services/salesOrderService');
+    const salesOrder = await createSalesOrderFromQuotation(quotation, actorId);
+
+    return ApiResponse.success(res, {
+      message: 'Quotation accepted and SalesOrder created successfully',
+      quotationId: quotation._id,
+      salesOrder
+    });
   } catch (err) {
     next(err);
   }

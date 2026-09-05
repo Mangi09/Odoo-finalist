@@ -63,11 +63,13 @@ async function evaluateQuotation(quotation, customer) {
   let needsApproval = false;
   let maxApprovalLevel = 0;
 
+  const tierId = customer ? customer.tierId : null;
+
   for (const item of quotation.items) {
-    const product = await Product.findById(item.productId);
+    const product = await Product.findById(item.productId._id || item.productId);
     if (!product) continue;
 
-    const limits = await getEffectiveLimit(customer.tierId, product.categoryId);
+    const limits = await getEffectiveLimit(tierId, product.categoryId);
     const requestedDiscount = item.discountPercent || 0;
     const exceedsLimit = requestedDiscount > limits.effectiveLimit;
 
@@ -79,7 +81,8 @@ async function evaluateQuotation(quotation, customer) {
     }
 
     decisions.push({
-      productId: item.productId,
+      quotationItemId: item._id,
+      productId: product._id,
       productName: product.name,
       requestedDiscount,
       effectiveLimit: limits.effectiveLimit,
@@ -110,7 +113,7 @@ async function runDiscountEngine(quotation, customer) {
       if (decision.exceedsLimit) {
         await Approval.create({
           quotationId: quotation._id,
-          quotationItemId: null, // Could be refined to specific item
+          quotationItemId: decision.quotationItemId || null,
           level: decision.approvalLevel,
           requestedDiscountPercent: decision.requestedDiscount,
           allowedDiscountPercent: decision.effectiveLimit,

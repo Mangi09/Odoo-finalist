@@ -1,6 +1,6 @@
 /**
  * Billing Service
- * Splits confirmed quotation items into one-time invoices and recurring subscriptions.
+ * Splits confirmed sales order items into one-time invoices and recurring subscriptions.
  */
 
 const Invoice = require('../models/Invoice');
@@ -9,39 +9,42 @@ const Product = require('../models/Product');
 const logger = require('../utils/logger');
 
 /**
- * Generate invoices and subscriptions from a confirmed quotation.
- * @param {Object} quotation - Quotation with items populated
+ * Generate invoices and subscriptions from a confirmed sales order.
+ * @param {Object} salesOrder - SalesOrder with items
  * @returns {Promise<{ invoices: Array, subscriptions: Array }>}
  */
-async function generateBilling(quotation) {
+async function generateBilling(salesOrder) {
   const invoices = [];
   const subscriptions = [];
 
   let oneTimeTotal = 0;
   let hasOneTimeItems = false;
 
-  for (const item of quotation.items) {
+  for (const item of salesOrder.items) {
     const product = await Product.findById(item.productId);
-    if (!product) continue;
+    const billingType = item.billingType || (product ? product.billingType : 'ONE_TIME');
 
-    if (product.billingType === 'ONE_TIME') {
+    if (billingType === 'ONE_TIME') {
       oneTimeTotal += item.lineTotal;
       hasOneTimeItems = true;
-    } else if (product.billingType === 'RECURRING') {
+    } else if (billingType === 'RECURRING') {
+      const frequency = product ? (product.frequency || 'MONTHLY') : 'MONTHLY';
+
       const sub = await Subscription.create({
-        quotationItemId: item._id,
+        salesOrderId: salesOrder._id,
+        salesOrderItemId: item._id || item.quotationItemId,
         productId: item.productId,
-        frequency: product.frequency || 'MONTHLY',
+        frequency,
         amount: item.lineTotal,
         startDate: new Date(),
         status: 'ACTIVE',
       });
       subscriptions.push(sub);
-      logger.info(`Subscription created: ${product.name} — ${product.frequency} — ₹${item.lineTotal}`);
+      logger.info(`Subscription created: ${product ? product.name : item.productId} — ${frequency} — ₹${item.lineTotal}`);
 
       // Also create first recurring invoice
       const recurringInvoice = await Invoice.create({
-        quotationId: quotation._id,
+        salesOrderId: salesOrder._id,
         type: 'RECURRING',
         amount: item.lineTotal,
         status: 'ISSUED',
@@ -53,9 +56,9 @@ async function generateBilling(quotation) {
   }
 
   // Create one-time invoice for all hardware/service items
-  if (hasOneTimeItems) {
+  if (hasOneTimeItems && oneTimeTotal > 0) {
     const invoice = await Invoice.create({
-      quotationId: quotation._id,
+      salesOrderId: salesOrder._id,
       type: 'ONE_TIME',
       amount: oneTimeTotal,
       status: 'ISSUED',
@@ -63,7 +66,7 @@ async function generateBilling(quotation) {
       dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // Net 30
     });
     invoices.push(invoice);
-    logger.info(`One-time invoice created: ₹${oneTimeTotal}`);
+    logger.info(`One-time invoice created for SalesOrder ${salesOrder.orderNumber}: ₹${oneTimeTotal}`);
   }
 
   return { invoices, subscriptions };

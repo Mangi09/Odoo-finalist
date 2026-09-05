@@ -1,6 +1,6 @@
 /**
  * Warehouse Allocator Service
- * Allocates inventory across warehouses by priority for confirmed quotations.
+ * Allocates inventory across warehouses by priority for confirmed sales orders.
  */
 
 const Warehouse = require('../models/Warehouse');
@@ -11,21 +11,21 @@ const Product = require('../models/Product');
 const logger = require('../utils/logger');
 
 /**
- * Allocate inventory for a confirmed quotation.
- * @param {Object} quotation - Quotation document with items
+ * Allocate inventory for a confirmed sales order.
+ * @param {Object} salesOrder - SalesOrder document with items
  * @returns {Promise<{ fulfillments: Array, backorders: Array }>}
  */
-async function allocateForQuotation(quotation) {
+async function allocateForSalesOrder(salesOrder) {
   const warehouses = await Warehouse.find().sort({ priority: 1 }); // lower priority number = higher priority
   const fulfillments = [];
   const backorders = [];
 
-  for (const item of quotation.items) {
+  for (const item of salesOrder.items) {
     const product = await Product.findById(item.productId);
-    if (!product) continue;
-
+    
     // Skip recurring/service products — no physical inventory
-    if (product.billingType === 'RECURRING') continue;
+    const billingType = item.billingType || (product ? product.billingType : 'ONE_TIME');
+    if (billingType === 'RECURRING') continue;
 
     let remainingQty = item.qty;
 
@@ -47,8 +47,8 @@ async function allocateForQuotation(quotation) {
       await inventory.save();
 
       const fulfillment = await Fulfillment.create({
-        quotationId: quotation._id,
-        quotationItemId: item._id,
+        salesOrderId: salesOrder._id,
+        salesOrderItemId: item._id || item.quotationItemId,
         warehouseId: warehouse._id,
         allocatedQty: allocateQty,
         status: 'RESERVED',
@@ -57,25 +57,25 @@ async function allocateForQuotation(quotation) {
       fulfillments.push(fulfillment);
       remainingQty -= allocateQty;
 
-      logger.info(`Allocated ${allocateQty}x ${product.name} from ${warehouse.name}`);
+      logger.info(`Allocated ${allocateQty}x ${product ? product.name : item.productId} from ${warehouse.name}`);
     }
 
     // If still remaining → backorder
     if (remainingQty > 0) {
       const backorder = await Backorder.create({
-        quotationId: quotation._id,
-        quotationItemId: item._id,
+        salesOrderId: salesOrder._id,
+        salesOrderItemId: item._id || item.quotationItemId,
         productId: item.productId,
         pendingQty: remainingQty,
         status: 'PENDING',
       });
 
       backorders.push(backorder);
-      logger.warn(`Backorder: ${remainingQty}x ${product.name} — insufficient inventory`);
+      logger.warn(`Backorder: ${remainingQty}x ${product ? product.name : item.productId} — insufficient inventory`);
     }
   }
 
   return { fulfillments, backorders };
 }
 
-module.exports = { allocateForQuotation };
+module.exports = { allocateForSalesOrder, allocateForQuotation: allocateForSalesOrder };

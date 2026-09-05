@@ -52,31 +52,41 @@ async function runTests() {
     const quotes = await request({ port: 5000, path: '/api/v1/quotations', method: 'GET' });
     console.log(`✓ GET /api/v1/quotations: ${quotes.status} PASS (${quotes.data?.data?.length} quotations returned)`);
 
-    // 6. Approvals
+    // 6. Sales Orders
+    const salesOrders = await request({ port: 5000, path: '/api/v1/sales-orders', method: 'GET' });
+    console.log(`✓ GET /api/v1/sales-orders: ${salesOrders.status} PASS (${salesOrders.data?.data?.length} sales orders returned)`);
+
+    if (salesOrders.data?.data?.length > 0) {
+      const firstSo = salesOrders.data.data[0];
+      const soDetail = await request({ port: 5000, path: `/api/v1/sales-orders/${firstSo._id}`, method: 'GET' });
+      console.log(`✓ GET /api/v1/sales-orders/:id: ${soDetail.status} PASS (Order: ${soDetail.data?.data?.orderNumber})`);
+    }
+
+    // 7. Approvals
     const approvals = await request({ port: 5000, path: '/api/v1/approvals', method: 'GET' });
     console.log(`✓ GET /api/v1/approvals: ${approvals.status} PASS (${approvals.data?.data?.length} approvals returned)`);
 
-    // 7. Fulfillments
+    // 8. Fulfillments
     const fulfillments = await request({ port: 5000, path: '/api/v1/fulfillments', method: 'GET' });
     console.log(`✓ GET /api/v1/fulfillments: ${fulfillments.status} PASS (${fulfillments.data?.data?.length} fulfillments returned)`);
 
-    // 8. Subscriptions
+    // 9. Subscriptions
     const subs = await request({ port: 5000, path: '/api/v1/subscriptions', method: 'GET' });
     console.log(`✓ GET /api/v1/subscriptions: ${subs.status} PASS (${subs.data?.data?.length} subscriptions returned)`);
 
-    // 9. Invoices
+    // 10. Invoices
     const invoices = await request({ port: 5000, path: '/api/v1/invoices', method: 'GET' });
     console.log(`✓ GET /api/v1/invoices: ${invoices.status} PASS (${invoices.data?.data?.length} invoices returned)`);
 
-    // 10. Deal Health
+    // 11. Deal Health
     const healthDash = await request({ port: 5000, path: '/api/v1/deal-health', method: 'GET' });
     console.log(`✓ GET /api/v1/deal-health: ${healthDash.status} PASS (${healthDash.data?.data?.anomalies?.length} anomalies, ${healthDash.data?.data?.atRiskDeals?.length} at-risk deals)`);
 
-    // 11. Reports KPIs
+    // 12. Reports KPIs
     const kpis = await request({ port: 5000, path: '/api/v1/reports/kpis', method: 'GET' });
     console.log('✓ GET /api/v1/reports/kpis:', kpis.status, 'PASS (Active deals:', kpis.data?.data?.activeDeals?.value, ')');
 
-    // 12. Razorpay Payment Order
+    // 13. Razorpay Payment Order
     const firstInvoice = invoices.data?.data?.[0];
     if (firstInvoice) {
       const order = await request({

@@ -1,20 +1,20 @@
 const Fulfillment = require('../models/Fulfillment');
-const Quotation = require('../models/Quotation');
+const SalesOrder = require('../models/SalesOrder');
 const Warehouse = require('../models/Warehouse');
 const Product = require('../models/Product');
-const { transitionStatus } = require('../utils/stateMachine');
+const { transitionSalesOrderStatus } = require('../utils/stateMachine');
 const ApiResponse = require('../utils/apiResponse');
 
 function formatFulfillment(f) {
-  const quote = f.quotationId || {};
-  const cust = quote.customerId || {};
+  const order = f.salesOrderId || {};
+  const cust = order.customerId || {};
   const warehouse = f.warehouseId || {};
 
   return {
     _id: f._id,
     id: `FUL-${f._id.toString().slice(-4).toUpperCase()}`,
-    quotation: quote.quotationNumber || (quote._id ? `Q-${quote._id.toString().slice(-4).toUpperCase()}` : 'Q-1040'),
-    quotationId: quote._id,
+    salesOrderId: order._id,
+    salesOrderNumber: order.orderNumber || 'SO-2026-0001',
     customer: cust.name || 'Customer',
     warehouse: warehouse.name || 'Main Warehouse',
     allocatedQty: f.allocatedQty,
@@ -29,14 +29,14 @@ function formatFulfillment(f) {
  */
 exports.getFulfillments = async (req, res, next) => {
   try {
-    const { status, quotationId } = req.query;
+    const { status, salesOrderId } = req.query;
     const filter = {};
     if (status) filter.status = status.toUpperCase();
-    if (quotationId) filter.quotationId = quotationId;
+    if (salesOrderId) filter.salesOrderId = salesOrderId;
 
     const fulfillments = await Fulfillment.find(filter)
       .populate({
-        path: 'quotationId',
+        path: 'salesOrderId',
         populate: { path: 'customerId' }
       })
       .populate('warehouseId')
@@ -55,7 +55,7 @@ exports.getFulfillmentById = async (req, res, next) => {
   try {
     const fulfillment = await Fulfillment.findById(req.params.id)
       .populate({
-        path: 'quotationId',
+        path: 'salesOrderId',
         populate: [{ path: 'customerId' }, { path: 'items.productId' }]
       })
       .populate('warehouseId');
@@ -85,18 +85,18 @@ exports.updateFulfillmentStatus = async (req, res, next) => {
     fulfillment.status = status;
     await fulfillment.save();
 
-    // If delivered, check if all fulfillments for this quotation are delivered
+    // If delivered, check if all fulfillments for this SalesOrder are delivered
     if (status === 'DELIVERED') {
       const remaining = await Fulfillment.countDocuments({
-        quotationId: fulfillment.quotationId,
+        salesOrderId: fulfillment.salesOrderId,
         status: { $ne: 'DELIVERED' }
       });
 
       if (remaining === 0) {
-        const quotation = await Quotation.findById(fulfillment.quotationId);
-        if (quotation && quotation.status === 'FULFILLMENT') {
-          const actorId = req.user?._id || quotation.salespersonId;
-          await transitionStatus(quotation, 'BILLED', actorId, 'All items delivered — ready for final billing');
+        const salesOrder = await SalesOrder.findById(fulfillment.salesOrderId);
+        if (salesOrder && (salesOrder.status === 'IN_FULFILLMENT' || salesOrder.status === 'PARTIALLY_FULFILLED')) {
+          const actorId = req.user?._id || salesOrder.salespersonId;
+          await transitionSalesOrderStatus(salesOrder, 'BILLED', actorId, 'All items delivered — order billed');
         }
       }
     }

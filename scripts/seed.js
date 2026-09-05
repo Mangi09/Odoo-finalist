@@ -21,7 +21,11 @@ const {
   Payment,
   DealHealth,
   QuotationHistory,
+  SalesOrder,
+  SalesOrderHistory,
 } = require('../models');
+
+const { createSalesOrderFromQuotation } = require('../services/salesOrderService');
 
 async function seed() {
   const connStr = process.env.MONGO_URI || 'mongodb://localhost:27017/odoo';
@@ -35,7 +39,7 @@ async function seed() {
     User, CustomerTier, Customer, Category, Product, DiscountRule,
     Quotation, Approval, Recommendation, Warehouse, Inventory,
     Fulfillment, Backorder, Negotiation, Subscription, Invoice,
-    Payment, DealHealth, QuotationHistory
+    Payment, DealHealth, QuotationHistory, SalesOrder, SalesOrderHistory
   ];
 
   for (const col of collections) {
@@ -160,17 +164,8 @@ async function seed() {
     billingType: 'ONE_TIME',
     isActive: true
   });
-  const pWorkflow = await Product.create({
-    name: 'Workflow Automation Module',
-    categoryId: catSoftware._id,
-    cost: 700,
-    sellingPrice: 1500,
-    billingType: 'ONE_TIME',
-    isActive: true
-  });
 
   console.log('4. Seeding Discount Rules...');
-  // Tier + Category specific rules
   await DiscountRule.create({ tierId: bronze._id, categoryId: catHardware._id, maxDiscountPercent: 5, approvalLevel: 1 });
   await DiscountRule.create({ tierId: silver._id, categoryId: catHardware._id, maxDiscountPercent: 10, approvalLevel: 1 });
   await DiscountRule.create({ tierId: gold._id, categoryId: catHardware._id, maxDiscountPercent: 12, approvalLevel: 2 });
@@ -248,18 +243,10 @@ async function seed() {
     tierId: bronze._id,
     portalEnabled: false
   });
-  const cNova = await Customer.create({
-    companyName: 'Nova Industries',
-    contactName: 'Elena Rostova',
-    email: 'elena@novaindustries.com',
-    phone: '+91 98444 55667',
-    tierId: silver._id,
-    portalEnabled: true
-  });
 
-  console.log('8. Seeding Quotations & History...');
+  console.log('8. Seeding Multi-Item Demo Quotations...');
 
-  // Quotation 1: Acme Corp - High Discount needing approval (Matches Q-1042 in frontend)
+  // Quotation 1: Acme Corp - High Discount needing approval
   const q1Items = [
     {
       productId: pLaptop14._id,
@@ -307,20 +294,20 @@ async function seed() {
     quotationId: qAcme._id,
     actorId: uAtharva._id,
     action: 'Quotation created in DRAFT',
-    fromStatus: 'DRAFT',
-    toStatus: 'DRAFT'
+    oldValue: null,
+    newValue: 'DRAFT'
   });
   await QuotationHistory.create({
     quotationId: qAcme._id,
     actorId: uAtharva._id,
     action: 'Submitted for approval (18% discount requested on Laptop Pro 14)',
-    fromStatus: 'DRAFT',
-    toStatus: 'PENDING_APPROVAL'
+    oldValue: 'DRAFT',
+    newValue: 'PENDING_APPROVAL'
   });
 
-  // Create Approval for qAcme
   await Approval.create({
     quotationId: qAcme._id,
+    quotationItemId: qAcme.items[0]._id,
     approverId: uManager._id,
     level: 2,
     requestedDiscountPercent: 18,
@@ -329,7 +316,6 @@ async function seed() {
     reason: 'Requested 18% exceeds limit of 12% for Laptop Pro 14'
   });
 
-  // Deal Health for qAcme
   await DealHealth.create({
     quotationId: qAcme._id,
     score: 48,
@@ -337,231 +323,62 @@ async function seed() {
     riskFactors: ['1 pending approval(s)', 'Discount exceeds standard Gold tier by 6%']
   });
 
-  // Quotation 2: TechNova - DRAFT (Matches Q-1041)
-  const q2Items = [
+  // Quotation 2: Multi-Item Quotation with 3+ Line Items from 3 Categories -> Converted to SalesOrder!
+  console.log('9. Progressing Demo Quotation into SalesOrder...');
+  const multiItems = [
     {
-      productId: pCloud._id,
-      qty: 1,
-      unitPrice: 299,
-      discountPercent: 5,
-      lineTotal: 299 * 0.95,
-      lineMargin: 299 * 0.95 - 120,
-      isRecommendation: false
-    }
-  ];
-  const qTechNova = await Quotation.create({
-    customerId: cTechNova._id,
-    salespersonId: uAtharva._id,
-    title: 'Cloud Migration Services',
-    status: 'DRAFT',
-    items: q2Items,
-    totalAmount: 240000,
-    totalMargin: 80000,
-    riskScore: 20
-  });
-  await QuotationHistory.create({
-    quotationId: qTechNova._id,
-    actorId: uAtharva._id,
-    action: 'Quotation drafted',
-    fromStatus: 'DRAFT',
-    toStatus: 'DRAFT'
-  });
-  await DealHealth.create({
-    quotationId: qTechNova._id,
-    score: 88,
-    status: 'HEALTHY',
-    riskFactors: []
-  });
-
-  // Quotation 3: Vertex Enterprises - CONFIRMED & In Fulfillment (Matches Q-1040)
-  const q3Items = [
-    {
-      productId: pLaptop16._id,
-      qty: 3,
+      productId: pLaptop16._id, // Hardware
+      qty: 5,
       unitPrice: 1850,
       discountPercent: 10,
-      lineTotal: 1850 * 3 * 0.9,
-      lineMargin: (1850 * 0.9 - 1400) * 3,
+      lineTotal: Math.round(1850 * 5 * 0.9),
+      lineMargin: Math.round((1850 * 0.9 - 1400) * 5),
       isRecommendation: false
+    },
+    {
+      productId: pAnalytics._id, // Software
+      qty: 1,
+      unitPrice: 3500,
+      discountPercent: 5,
+      lineTotal: Math.round(3500 * 0.95),
+      lineMargin: Math.round(3500 * 0.95 - 1800),
+      isRecommendation: false
+    },
+    {
+      productId: pSupportSLA._id, // Subscription Service
+      qty: 1,
+      unitPrice: 500,
+      discountPercent: 0,
+      lineTotal: 500,
+      lineMargin: 300,
+      isRecommendation: true
     }
   ];
+
+  const qMultiTotalAmount = multiItems.reduce((s, i) => s + i.lineTotal, 0);
+  const qMultiTotalMargin = multiItems.reduce((s, i) => s + i.lineMargin, 0);
+
   const qVertex = await Quotation.create({
     customerId: cVertex._id,
     salespersonId: uAtharva._id,
-    title: 'Annual Support Contract & Hardware',
-    status: 'FULFILLMENT',
-    items: q3Items,
-    totalAmount: 610000,
-    totalMargin: 190000,
-    riskScore: 15
-  });
-  await QuotationHistory.create({
-    quotationId: qVertex._id,
-    actorId: uAtharva._id,
-    action: 'Quotation confirmed by customer',
-    fromStatus: 'SENT_TO_CUSTOMER',
-    toStatus: 'CONFIRMED'
-  });
-  await QuotationHistory.create({
-    quotationId: qVertex._id,
-    actorId: uAtharva._id,
-    action: 'Fulfillment initiated from Mumbai Central DC',
-    fromStatus: 'CONFIRMED',
-    toStatus: 'FULFILLMENT'
-  });
-
-  // Create Fulfillment and Invoice for qVertex
-  await Fulfillment.create({
-    quotationId: qVertex._id,
-    quotationItemId: qVertex.items[0]._id,
-    warehouseId: whMumbai._id,
-    allocatedQty: 3,
-    status: 'SHIPPED'
-  });
-
-  const invVertex = await Invoice.create({
-    quotationId: qVertex._id,
-    type: 'ONE_TIME',
-    amount: 610000,
-    status: 'ISSUED',
-    issueDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
-    dueDate: new Date(Date.now() + 25 * 24 * 60 * 60 * 1000)
-  });
-
-  await DealHealth.create({
-    quotationId: qVertex._id,
-    score: 92,
-    status: 'HEALTHY',
-    riskFactors: []
-  });
-
-  // Quotation 4: Global Supplies - SENT_TO_CUSTOMER (Matches Q-1039)
-  const qGlobal = await Quotation.create({
-    customerId: cGlobal._id,
-    salespersonId: uAtharva._id,
-    title: 'Hardware Procurement',
-    status: 'SENT_TO_CUSTOMER',
-    items: [
-      {
-        productId: pSwitch._id,
-        qty: 5,
-        unitPrice: 380,
-        discountPercent: 5,
-        lineTotal: 380 * 5 * 0.95,
-        lineMargin: (380 * 0.95 - 250) * 5,
-        isRecommendation: false
-      }
-    ],
-    totalAmount: 190000,
-    totalMargin: 50000,
-    riskScore: 35
-  });
-  await QuotationHistory.create({
-    quotationId: qGlobal._id,
-    actorId: uAtharva._id,
-    action: 'Sent to customer for review',
-    fromStatus: 'APPROVED',
-    toStatus: 'SENT_TO_CUSTOMER'
-  });
-  await DealHealth.create({
-    quotationId: qGlobal._id,
-    score: 75,
-    status: 'HEALTHY',
-    riskFactors: []
-  });
-
-  // Quotation 5: Nova Industries - NEGOTIATION (Matches Q-1038)
-  const qNova = await Quotation.create({
-    customerId: cNova._id,
-    salespersonId: uAtharva._id,
-    title: 'Security Audit Framework',
-    status: 'NEGOTIATION',
-    items: [
-      {
-        productId: pAnalytics._id,
-        qty: 1,
-        unitPrice: 3500,
-        discountPercent: 12,
-        lineTotal: 3500 * 0.88,
-        lineMargin: 3500 * 0.88 - 1800,
-        isRecommendation: false
-      }
-    ],
-    totalAmount: 375000,
-    totalMargin: 120000,
-    riskScore: 65
-  });
-  await QuotationHistory.create({
-    quotationId: qNova._id,
-    actorId: uAtharva._id,
-    action: 'Customer requested discount negotiation',
-    fromStatus: 'SENT_TO_CUSTOMER',
-    toStatus: 'NEGOTIATION'
-  });
-  await DealHealth.create({
-    quotationId: qNova._id,
-    score: 38,
-    status: 'CRITICAL',
-    riskFactors: ['Active negotiation stalled', 'Discount adjustment pending review']
-  });
-
-  // Quotation 6: PAID Quotation with Invoice & Payment
-  const qPaid = await Quotation.create({
-    customerId: cAcme._id,
-    salespersonId: uAtharva._id,
-    title: 'Enterprise Analytics Renewal',
-    status: 'PAID',
-    items: [
-      {
-        productId: pAnalytics._id,
-        qty: 1,
-        unitPrice: 3500,
-        discountPercent: 10,
-        lineTotal: 3150,
-        lineMargin: 1350,
-        isRecommendation: false
-      }
-    ],
-    totalAmount: 3150,
-    totalMargin: 1350,
+    title: 'Enterprise Multi-Category Tech Stack Package',
+    status: 'APPROVED',
+    items: multiItems,
+    totalAmount: qMultiTotalAmount,
+    totalMargin: qMultiTotalMargin,
     riskScore: 10
   });
 
-  const invPaid = await Invoice.create({
-    quotationId: qPaid._id,
-    type: 'ONE_TIME',
-    amount: 3150,
-    status: 'PAID',
-    issueDate: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000),
-    dueDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000)
+  await QuotationHistory.create({
+    quotationId: qVertex._id,
+    actorId: uAtharva._id,
+    action: 'Multi-item quotation approved by manager',
+    oldValue: 'PENDING_APPROVAL',
+    newValue: 'APPROVED'
   });
 
-  await Payment.create({
-    invoiceId: invPaid._id,
-    amount: 3150,
-    method: 'CARD',
-    status: 'SUCCESS',
-    paidAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
-    reference: 'PAY-1042'
-  });
-
-  // Seed Subscriptions
-  await Subscription.create({
-    quotationItemId: qAcme.items[2]._id,
-    productId: pSupportSLA._id,
-    frequency: 'MONTHLY',
-    amount: 499,
-    startDate: new Date(),
-    status: 'ACTIVE'
-  });
-  await Subscription.create({
-    quotationItemId: qTechNova.items[0]._id,
-    productId: pCloud._id,
-    frequency: 'MONTHLY',
-    amount: 299,
-    startDate: new Date(),
-    status: 'ACTIVE'
-  });
+  // Convert Quotation into SalesOrder via salesOrderService!
+  const seededSalesOrder = await createSalesOrderFromQuotation(qVertex, uAtharva._id);
 
   console.log('\n=========================================');
   console.log(' DealFlow360 Database Seeded Successfully!');
@@ -571,13 +388,13 @@ async function seed() {
   console.log('  Manager:     manager@dealflow360.com / password123');
   console.log('  Salesperson: atharva@dealflow360.com / password123');
   console.log('\nDemo Quotations:');
-  console.log(`  Q-1042 (Pending Approval): ${qAcme._id}`);
-  console.log(`  Q-1041 (Draft):            ${qTechNova._id}`);
-  console.log(`  Q-1040 (Fulfillment):      ${qVertex._id}`);
-  console.log(`  Q-1039 (Sent to Customer): ${qGlobal._id}`);
-  console.log(`  Q-1038 (Negotiation):      ${qNova._id}`);
-  console.log(`  Q-1035 (Paid):             ${qPaid._id}`);
-  console.log('\n=========================================\n');
+  console.log(`  Q-Pending (Approval): ${qAcme._id}`);
+  console.log(`  Q-Accepted:           ${qVertex._id} (Status: ${qVertex.status})`);
+  console.log('\nDemo SalesOrder:');
+  console.log(`  SO Number: ${seededSalesOrder.orderNumber}`);
+  console.log(`  SO Status: ${seededSalesOrder.status}`);
+  console.log(`  SO Amount: ₹${seededSalesOrder.totalAmount.toLocaleString('en-IN')}`);
+  console.log('=========================================\n');
 
   process.exit(0);
 }

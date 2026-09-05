@@ -1,6 +1,10 @@
 const mongoose = require('mongoose');
 
-const quotationItemSchema = new mongoose.Schema({
+const salesOrderItemSchema = new mongoose.Schema({
+  quotationItemId: {
+    type: mongoose.Schema.Types.ObjectId,
+    required: true,
+  },
   productId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Product',
@@ -33,14 +37,32 @@ const quotationItemSchema = new mongoose.Schema({
     type: Number,
     default: 0,
   },
+  billingType: {
+    type: String,
+    enum: ['ONE_TIME', 'RECURRING'],
+    required: true,
+    default: 'ONE_TIME',
+  },
   isRecommendation: {
     type: Boolean,
     default: false,
   },
 });
 
-const quotationSchema = new mongoose.Schema(
+const salesOrderSchema = new mongoose.Schema(
   {
+    orderNumber: {
+      type: String,
+      required: true,
+      unique: true,
+      index: true,
+    },
+    quotationId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Quotation',
+      required: true,
+      index: true,
+    },
     customerId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Customer',
@@ -53,35 +75,33 @@ const quotationSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
-    status: {
-      type: String,
-      enum: [
-        'DRAFT',
-        'PENDING_APPROVAL',
-        'APPROVED',
-        'SENT_TO_CUSTOMER',
-        'NEGOTIATION',
-        'RE_APPROVAL',
-        'ACCEPTED',
-        'REJECTED',
-        'CANCELLED',
-      ],
-      default: 'DRAFT',
-      required: true,
-    },
-    items: [quotationItemSchema],
+    items: [salesOrderItemSchema],
     totalAmount: {
       type: Number,
-      default: 0,
+      required: true,
       min: 0,
     },
     totalMargin: {
       type: Number,
       default: 0,
     },
-    riskScore: {
-      type: Number,
-      default: 0,
+    status: {
+      type: String,
+      enum: [
+        'CONFIRMED',
+        'IN_FULFILLMENT',
+        'PARTIALLY_FULFILLED',
+        'BILLED',
+        'PAID',
+        'CLOSED',
+        'CANCELLED',
+      ],
+      default: 'CONFIRMED',
+      required: true,
+    },
+    confirmedAt: {
+      type: Date,
+      default: Date.now,
     },
   },
   {
@@ -89,4 +109,4 @@ const quotationSchema = new mongoose.Schema(
   }
 );
 
-module.exports = mongoose.model('Quotation', quotationSchema);
+module.exports = mongoose.model('SalesOrder', salesOrderSchema);

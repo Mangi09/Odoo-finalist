@@ -1,32 +1,33 @@
 const Invoice = require('../models/Invoice');
-const Quotation = require('../models/Quotation');
+const SalesOrder = require('../models/SalesOrder');
 const Payment = require('../models/Payment');
 const { generateInvoicePdf } = require('../services/invoicePdfService');
-const { transitionStatus } = require('../utils/stateMachine');
+const { transitionSalesOrderStatus } = require('../utils/stateMachine');
 const ApiResponse = require('../utils/apiResponse');
 
 function formatInvoice(inv) {
-  const quote = inv.quotationId || {};
-  const cust = quote.customerId || {};
+  const order = inv.salesOrderId || {};
+  const cust = order.customerId || {};
 
-  const customerName = cust.companyName || cust.name || 'Acme Corp';
+  const customerName = cust.companyName || cust.name || 'Customer Corp';
   const dueDateStr = inv.dueDate ? new Date(inv.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'Net 30';
 
   const statusDisplay = inv.status === 'PAID' ? 'Paid' : 'Unpaid';
   const typeDisplay = inv.type === 'ONE_TIME' ? 'One-Time' : 'Recurring';
+  const linkedDeal = order.orderNumber || 'SO-2026-0001';
 
   return {
     _id: inv._id,
     id: `INV-${inv._id.toString().slice(-4).toUpperCase()}`,
     customer: customerName,
-    amount: `$${inv.amount?.toLocaleString() || 0}`,
+    amount: `₹${inv.amount?.toLocaleString('en-IN') || 0}`,
     rawAmount: inv.amount,
     status: statusDisplay,
     dueDate: dueDateStr,
     type: typeDisplay,
     issueDate: inv.issueDate,
-    quotationId: quote._id,
-    linkedDeal: quote.quotationNumber || (quote._id ? `Q-${quote._id.toString().slice(-4).toUpperCase()}` : 'Q-1042')
+    salesOrderId: order._id || null,
+    linkedDeal
   };
 }
 
@@ -42,7 +43,7 @@ exports.getInvoices = async (req, res, next) => {
 
     const invoices = await Invoice.find(filter)
       .populate({
-        path: 'quotationId',
+        path: 'salesOrderId',
         populate: { path: 'customerId' }
       })
       .sort({ createdAt: -1 });
@@ -61,30 +62,31 @@ exports.getInvoiceById = async (req, res, next) => {
     const { id } = req.params;
     let invoice;
     if (id.match(/^[0-9a-fA-F]{24}$/)) {
-      invoice = await Invoice.findById(id).populate({
-        path: 'quotationId',
-        populate: [{ path: 'customerId' }, { path: 'items.productId' }]
-      });
+      invoice = await Invoice.findById(id)
+        .populate({
+          path: 'salesOrderId',
+          populate: [{ path: 'customerId' }, { path: 'items.productId' }]
+        });
     } else {
-      const all = await Invoice.find().populate({
-        path: 'quotationId',
-        populate: [{ path: 'customerId' }, { path: 'items.productId' }]
-      });
+      const all = await Invoice.find()
+        .populate({
+          path: 'salesOrderId',
+          populate: [{ path: 'customerId' }, { path: 'items.productId' }]
+        });
       invoice = all.find(inv => `INV-${inv._id.toString().slice(-4).toUpperCase()}` === id.toUpperCase());
     }
 
     if (!invoice) return ApiResponse.notFound(res, 'Invoice not found');
 
     const payments = await Payment.find({ invoiceId: invoice._id }).sort({ createdAt: -1 });
-
-    const quote = invoice.quotationId || {};
-    const cust = quote.customerId || {};
+    const order = invoice.salesOrderId || {};
+    const cust = order.customerId || {};
 
     const formatted = {
       _id: invoice._id,
       id: `INV-${invoice._id.toString().slice(-4).toUpperCase()}`,
-      customer: cust.companyName || cust.name || 'Acme Corporation',
-      linkedDeal: quote.quotationNumber || (quote._id ? `Q-${quote._id.toString().slice(-4).toUpperCase()}` : 'Q-1042'),
+      customer: cust.companyName || cust.name || 'Customer Corp',
+      linkedDeal: order.orderNumber || 'SO-2026-0001',
       amount: invoice.amount,
       invoiceDate: invoice.issueDate ? new Date(invoice.issueDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '10 Sep 2026',
       dueDate: invoice.dueDate ? new Date(invoice.dueDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '18 Sep 2026',
@@ -145,16 +147,18 @@ exports.recordPayment = async (req, res, next) => {
     invoice.status = 'PAID';
     await invoice.save();
 
-    // Check if quotation can transition to PAID
-    const quotation = await Quotation.findById(invoice.quotationId);
-    if (quotation && (quotation.status === 'BILLED' || quotation.status === 'FULFILLMENT')) {
-      const remainingUnpaid = await Invoice.countDocuments({
-        quotationId: quotation._id,
-        status: { $ne: 'PAID' }
-      });
-      if (remainingUnpaid === 0) {
-        const actorId = req.user?._id || quotation.salespersonId;
-        await transitionStatus(quotation, 'PAID', actorId, 'All invoices paid in full');
+    // Check if SalesOrder can transition to PAID
+    if (invoice.salesOrderId) {
+      const salesOrder = await SalesOrder.findById(invoice.salesOrderId);
+      if (salesOrder && (salesOrder.status === 'BILLED' || salesOrder.status === 'IN_FULFILLMENT')) {
+        const remainingUnpaid = await Invoice.countDocuments({
+          salesOrderId: salesOrder._id,
+          status: { $ne: 'PAID' }
+        });
+        if (remainingUnpaid === 0) {
+          const actorId = req.user?._id || salesOrder.salespersonId;
+          await transitionSalesOrderStatus(salesOrder, 'PAID', actorId, 'All invoices paid in full');
+        }
       }
     }
 

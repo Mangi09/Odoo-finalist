@@ -17,6 +17,8 @@ const Invoice = require('./Invoice');
 const Payment = require('./Payment');
 const DealHealth = require('./DealHealth');
 const QuotationHistory = require('./QuotationHistory');
+const SalesOrder = require('./SalesOrder');
+const SalesOrderHistory = require('./SalesOrderHistory');
 
 module.exports = {
   User,
@@ -38,4 +40,6 @@ module.exports = {
   Payment,
   DealHealth,
   QuotationHistory,
+  SalesOrder,
+  SalesOrderHistory,
 };

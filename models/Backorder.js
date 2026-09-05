@@ -2,13 +2,13 @@ const mongoose = require('mongoose');
 
 const backorderSchema = new mongoose.Schema(
   {
-    quotationId: {
+    salesOrderId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'Quotation',
+      ref: 'SalesOrder',
       required: true,
       index: true,
     },
-    quotationItemId: {
+    salesOrderItemId: {
       type: mongoose.Schema.Types.ObjectId,
       required: true,
     },

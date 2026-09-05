@@ -4,6 +4,7 @@
  */
 
 const Quotation = require('../models/Quotation');
+const SalesOrder = require('../models/SalesOrder');
 const Approval = require('../models/Approval');
 const Invoice = require('../models/Invoice');
 const Payment = require('../models/Payment');
@@ -15,19 +16,28 @@ const Product = require('../models/Product');
  * Get KPI summary for admin dashboard.
  */
 async function getKpis() {
-  const activeStatuses = ['DRAFT', 'PENDING_APPROVAL', 'APPROVED', 'SENT_TO_CUSTOMER', 'NEGOTIATION', 'RE_APPROVAL', 'CONFIRMED', 'FULFILLMENT', 'BILLED'];
-  const activeDeals = await Quotation.countDocuments({ status: { $in: activeStatuses } });
+  const activeQuoteStatuses = ['DRAFT', 'PENDING_APPROVAL', 'APPROVED', 'SENT_TO_CUSTOMER', 'NEGOTIATION', 'RE_APPROVAL', 'ACCEPTED'];
+  const activeSoStatuses = ['CONFIRMED', 'IN_FULFILLMENT', 'PARTIALLY_FULFILLED', 'BILLED'];
 
-  const pipelineResult = await Quotation.aggregate([
-    { $match: { status: { $in: activeStatuses } } },
+  const activeQuoteCount = await Quotation.countDocuments({ status: { $in: activeQuoteStatuses } });
+  const activeSoCount = await SalesOrder.countDocuments({ status: { $in: activeSoStatuses } });
+  const activeDeals = activeQuoteCount + activeSoCount;
+
+  const quotePipeline = await Quotation.aggregate([
+    { $match: { status: { $in: activeQuoteStatuses } } },
     { $group: { _id: null, total: { $sum: '$totalAmount' } } },
   ]);
-  const revenuePipeline = pipelineResult[0]?.total || 0;
+  const soPipeline = await SalesOrder.aggregate([
+    { $match: { status: { $in: activeSoStatuses } } },
+    { $group: { _id: null, total: { $sum: '$totalAmount' } } },
+  ]);
+
+  const revenuePipeline = (quotePipeline[0]?.total || 0) + (soPipeline[0]?.total || 0);
 
   const pendingApprovals = await Approval.countDocuments({ status: 'PENDING' });
 
   const paymentResult = await Payment.aggregate([
-    { $match: { status: 'SUCCESS' } },
+    { $match: { status: 'CAPTURED' } },
     { $group: { _id: null, total: { $sum: '$amount' } } },
   ]);
   const paymentsCollected = paymentResult[0]?.total || 0;
@@ -52,27 +62,22 @@ async function getKpis() {
  * Get lifecycle overview stages.
  */
 async function getLifecycleStages() {
-  const stages = [
-    { name: 'Sales', statuses: ['DRAFT'] },
-    { name: 'Quotation', statuses: ['PENDING_APPROVAL', 'APPROVED'] },
-    { name: 'Negotiation', statuses: ['SENT_TO_CUSTOMER', 'NEGOTIATION', 'RE_APPROVAL'] },
-    { name: 'Approval', statuses: ['PENDING_APPROVAL', 'RE_APPROVAL'] },
-    { name: 'Fulfillment', statuses: ['CONFIRMED', 'FULFILLMENT'] },
-    { name: 'Invoice', statuses: ['BILLED'] },
-    { name: 'Payment', statuses: ['PAID'] },
+  const quoteResults = [
+    { name: 'Sales', count: await Quotation.countDocuments({ status: 'DRAFT' }) },
+    { name: 'Quotation', count: await Quotation.countDocuments({ status: { $in: ['PENDING_APPROVAL', 'APPROVED'] } }) },
+    { name: 'Negotiation', count: await Quotation.countDocuments({ status: { $in: ['SENT_TO_CUSTOMER', 'NEGOTIATION', 'RE_APPROVAL'] } }) },
+    { name: 'Approval', count: await Approval.countDocuments({ status: 'PENDING' }) },
+    { name: 'Fulfillment', count: await SalesOrder.countDocuments({ status: { $in: ['CONFIRMED', 'IN_FULFILLMENT', 'PARTIALLY_FULFILLED'] } }) },
+    { name: 'Invoice', count: await SalesOrder.countDocuments({ status: 'BILLED' }) },
+    { name: 'Payment', count: await SalesOrder.countDocuments({ status: 'PAID' }) },
   ];
 
-  const results = [];
-  for (const stage of stages) {
-    const count = await Quotation.countDocuments({ status: { $in: stage.statuses } });
-    results.push({
-      name: stage.name,
-      count,
-      avgTime: `${Math.floor(Math.random() * 7) + 1} days`,
-      completionRate: `${Math.floor(60 + Math.random() * 40)}%`,
-    });
-  }
-  return results;
+  return quoteResults.map(r => ({
+    name: r.name,
+    count: r.count,
+    avgTime: `${Math.floor(Math.random() * 7) + 1} days`,
+    completionRate: `${Math.floor(60 + Math.random() * 40)}%`,
+  }));
 }
 
 /**
@@ -80,18 +85,18 @@ async function getLifecycleStages() {
  */
 async function getAnalytics() {
   const created = await Quotation.countDocuments();
-  const won = await Quotation.countDocuments({ status: 'PAID' });
+  const won = await SalesOrder.countDocuments({ status: 'PAID' });
   const conversionRate = created > 0 ? `${Math.round((won / created) * 100)}%` : '0%';
 
   const activeNeg = await Quotation.countDocuments({ status: { $in: ['NEGOTIATION', 'RE_APPROVAL'] } });
   const escalations = await Approval.countDocuments({ level: { $gte: 2 } });
 
   const inProgress = await Fulfillment.countDocuments({ status: 'RESERVED' });
-  const delayed = await Fulfillment.countDocuments({ status: 'SHIPPED' }); // approximation
+  const delayed = await Fulfillment.countDocuments({ status: 'SHIPPED' });
   const completed = await Fulfillment.countDocuments({ status: 'DELIVERED' });
 
   const receivedResult = await Payment.aggregate([
-    { $match: { status: 'SUCCESS' } },
+    { $match: { status: 'CAPTURED' } },
     { $group: { _id: null, total: { $sum: '$amount' } } },
   ]);
   const received = receivedResult[0]?.total || 0;
@@ -170,27 +175,36 @@ async function getAttentionItems() {
  */
 async function getActivity() {
   const QuotationHistory = require('../models/QuotationHistory');
-  const activities = await QuotationHistory.find()
-    .populate('quotationId')
+  const SalesOrderHistory = require('../models/SalesOrderHistory');
+
+  const qActivities = await QuotationHistory.find()
     .populate('actorId')
     .sort({ createdAt: -1 })
-    .limit(10);
+    .limit(5);
 
-  if (activities.length === 0) {
+  const soActivities = await SalesOrderHistory.find()
+    .populate('actorId')
+    .sort({ createdAt: -1 })
+    .limit(5);
+
+  const combined = [...qActivities, ...soActivities]
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+    .slice(0, 10);
+
+  if (combined.length === 0) {
     return [
       { title: 'Payment received for INV-1042', time: '10 mins ago' },
       { title: 'Manager approved discount exception for Acme Corp', time: '45 mins ago' },
-      { title: 'Warehouse marked Q-998 as fulfilled', time: '2 hours ago' },
+      { title: 'Warehouse marked order as fulfilled', time: '2 hours ago' },
       { title: 'Sales team created a new enterprise quotation', time: '3 hours ago' },
       { title: 'Negotiation for TechNova moved to approval', time: '5 hours ago' }
     ];
   }
 
-  return activities.map(a => ({
-    title: a.action || `Action on quotation`,
+  return combined.map(a => ({
+    title: a.action || `Action recorded`,
     time: new Date(a.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
   }));
 }
 
 module.exports = { getKpis, getLifecycleStages, getAnalytics, getAttentionItems, getActivity };
-

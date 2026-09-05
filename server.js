@@ -21,6 +21,7 @@ const subscriptionRoutes = require('./routes/subscriptions');
 const invoiceRoutes = require('./routes/invoices');
 const dealHealthRoutes = require('./routes/dealHealth');
 const reportsRoutes = require('./routes/reports');
+const salesOrderRoutes = require('./routes/salesOrders');
 const paymentRoutes = require('./routes/payments');
 
 const app = express();
@@ -50,6 +51,7 @@ app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/products', productRoutes);
 app.use('/api/v1/dashboard', dashboardRoutes);
 app.use('/api/v1/quotations', quotationRoutes);
+app.use('/api/v1/sales-orders', salesOrderRoutes);
 app.use('/api/v1/approvals', approvalRoutes);
 app.use('/api/v1', recommendationRoutes);
 app.use('/api/v1/portal', portalRoutes);

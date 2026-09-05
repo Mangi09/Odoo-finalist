@@ -2,8 +2,7 @@ const Quotation = require('../models/Quotation');
 const Negotiation = require('../models/Negotiation');
 const Customer = require('../models/Customer');
 const { transitionStatus } = require('../utils/stateMachine');
-const { allocateForQuotation } = require('../services/warehouseAllocator');
-const { generateBilling } = require('../services/billingService');
+const { createSalesOrderFromQuotation } = require('../services/salesOrderService');
 const ApiResponse = require('../utils/apiResponse');
 
 const ALLOWED_DISCOUNT_THRESHOLD = 12; // 12% max auto-approve threshold
@@ -50,7 +49,7 @@ exports.getPortalQuotation = async (req, res, next) => {
 
 /**
  * POST /api/v1/portal/quotation/:id/accept
- * Customer confirms the quotation
+ * Customer confirms the quotation -> creates SalesOrder
  */
 exports.acceptQuotation = async (req, res, next) => {
   try {
@@ -62,22 +61,12 @@ exports.acceptQuotation = async (req, res, next) => {
     }
 
     const actorId = req.user?._id || quotation.customerId;
-    await transitionStatus(quotation, 'CONFIRMED', actorId, 'Customer accepted quotation via portal');
-
-    // Trigger warehouse inventory allocation
-    const allocationResult = await allocateForQuotation(quotation);
-
-    // Trigger billing generation (invoices & subscriptions)
-    const billingResult = await generateBilling(quotation);
-
-    // Move to FULFILLMENT stage
-    await transitionStatus(quotation, 'FULFILLMENT', actorId, 'Order entered fulfillment');
+    const salesOrder = await createSalesOrderFromQuotation(quotation, actorId);
 
     return ApiResponse.success(res, {
-      message: 'Quotation accepted and order placed successfully',
+      message: 'Quotation accepted and Sales Order created successfully',
       quotation,
-      allocation: allocationResult,
-      billing: billingResult
+      salesOrder
     });
   } catch (err) {
     next(err);
@@ -120,12 +109,13 @@ exports.submitNegotiation = async (req, res, next) => {
     const negotiation = await Negotiation.create({
       quotationId: quotation._id,
       items: quotation.items.map(it => ({
+        quotationItemId: it._id,
         productId: it.productId,
         action: 'MODIFY',
         requestedQty: it.qty,
         requestedDiscountPercent: !isNaN(discountVal) ? discountVal : it.discountPercent
       })),
-      notes: lineComment || `Counter offer: ${counterDiscount}% discount requested. Date: ${requestedDate || 'Standard'}`
+      message: lineComment || `Counter offer: ${counterDiscount}% discount requested. Date: ${requestedDate || 'Standard'}`
     });
 
     const actorId = req.user?._id || quotation.customerId;
