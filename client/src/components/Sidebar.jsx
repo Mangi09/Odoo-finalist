@@ -6,11 +6,11 @@ import {
   Package,
   RefreshCw,
   Receipt,
+  ClipboardList,
   HeartPulse,
   BarChart3,
   Box,
   Users,
-  LogIn,
   LogOut,
   Hexagon,
   Sparkles
@@ -22,13 +22,13 @@ export default function Sidebar({ currentTab, onNavigate }) {
     { id: "quotations", label: "Quotations", icon: <CircleStar size={18} /> },
     { id: "approvals", label: "Approvals", icon: <CircleCheck size={18} /> },
     { id: "fulfillment", label: "Fulfillment", icon: <Package size={18} /> },
+    { id: "orders", label: "Orders", icon: <ClipboardList size={18} /> },
     { id: "subscriptions", label: "Subscriptions", icon: <RefreshCw size={18} /> },
     { id: "invoices", label: "Invoices", icon: <Receipt size={18} /> },
     { id: "deal-health", label: "Deal Health", icon: <HeartPulse size={18} /> },
     { id: "reports", label: "Reports", icon: <BarChart3 size={18} /> },
     { id: "product", label: "Product", icon: <Box size={18} /> },
-    { id: "customer-portal", label: "Customer Portal", icon: <Users size={18} /> },
-    { id: "auth", label: "Login / Signup", icon: <LogIn size={18} /> }
+    { id: "customer-portal", label: "Customer Portal", icon: <Users size={18} /> }
   ];
 
   const isItemActive = (id) => {

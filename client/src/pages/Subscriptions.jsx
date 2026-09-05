@@ -64,13 +64,13 @@ function Subscriptions({ subscriptionsList, onNavigate, onSelectSubscription }) 
 
   return (
     <main className="content">
+      <div className="page-card">
         <h1>Subscriptions (List)</h1>
 
         <p className="subtitle">
           Every recurring plan across every customer, regardless of which order it came from
         </p>
 
-        {/* Status Counters */}
         <div className="status-container">
           <div className="status approved">
             <span>{activeCount} Active</span>
@@ -84,8 +84,9 @@ function Subscriptions({ subscriptionsList, onNavigate, onSelectSubscription }) 
             <span>{cancelledCount} Cancelled</span>
           </div>
         </div>
+      </div>
 
-        {/* Subscriptions Table */}
+      <div className="page-card">
         <div className="table-wrapper">
           <table>
             <thead>
@@ -111,33 +112,23 @@ function Subscriptions({ subscriptionsList, onNavigate, onSelectSubscription }) 
             </tbody>
           </table>
         </div>
+      </div>
 
-        {/* Information Box */}
+      <div className="page-card">
         <div className="info-box">
           Click a subscription row to open its billing detail and proration history.
         </div>
 
-        {/* Action Button */}
-        <div style={{ marginTop: "20px" }}>
+        <div>
           <button
-            style={{
-              height: "40px",
-              padding: "0 16px",
-              borderRadius: "10px",
-              border: "1px solid #777",
-              background: "#ffffff",
-              fontSize: "12px",
-              cursor: "pointer",
-              color: "#222",
-            }}
+            className="btn-outline"
             onClick={() => alert("New Plan creation dialog (Admin restricted)")}
           >
             + New Plan (Admin)
           </button>
         </div>
 
-        {/* Filter Section */}
-        <div className="filter-section" style={{ marginTop: "18px" }}>
+        <div className="filter-section">
           <label htmlFor="filter">Filter:</label>
           <select
             id="filter"
@@ -150,7 +141,8 @@ function Subscriptions({ subscriptionsList, onNavigate, onSelectSubscription }) 
             <option value="cancelled">Cancelled Only</option>
           </select>
         </div>
-      </main>
+      </div>
+    </main>
   );
 }
 

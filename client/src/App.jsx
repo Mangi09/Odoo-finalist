@@ -4,6 +4,8 @@ import ApprovalDetail from "./pages/ApprovalDetail";
 import Subscriptions from "./pages/Subscriptions";
 import BillingDetail from "./pages/BillingDetail";
 import Invoices from "./pages/Invoices";
+import InvoiceDetailPage from "./pages/InvoiceDetailPage";
+import SalesOrders from "./pages/SalesOrders";
 import CustomerPortal from "./pages/CustomerPortal";
 import FulfillmentList from "./pages/FulfillmentList";
 import FulfillmentDetail from "./pages/FulfillmentDetail";
@@ -16,8 +18,7 @@ import ProductDetail from "./pages/ProductDetail";
 import DiscountRules from "./pages/DiscountRules";
 import AuthPage from "./pages/AuthPage";
 import CreateAccountPage from "./pages/CreateAccountPage";
-import FulfillmentDetail from "./pages/FulfillmentDetail";
-import Navbar from "./components/Navbar";
+
 import AppLayout from "./components/AppLayout";
 import './App.css';
 
@@ -48,7 +49,8 @@ const initialSubscriptions = [
 ];
 
 function App() {
-  const [currentTab, setCurrentTab] = useState("dashboard");
+  const [isAuthenticated, setIsAuthenticated] = useState(() => localStorage.getItem("dealflow-authenticated") === "true");
+  const [currentTab, setCurrentTab] = useState(() => localStorage.getItem("dealflow-authenticated") === "true" ? "dashboard" : "auth");
   const [selectedSubscription, setSelectedSubscription] = useState(initialSubscriptions[0]);
   const [selectedApproval, setSelectedApproval] = useState({
     quotation: "Q-1042",
@@ -71,6 +73,12 @@ function App() {
     dueDate: "Sep 10",
     type: "One-Time"
   });
+  const [selectedQuotation, setSelectedQuotation] = useState({
+    id: "Q-1042",
+    customer: "Acme Corp",
+    total: "$2,730",
+    status: "Approval",
+  });
   const [selectedProduct, setSelectedProduct] = useState({
     id: "PROD-001",
     name: "Laptop Pro 14",
@@ -84,6 +92,18 @@ function App() {
   });
 
   const handleNavigate = (tab, data) => {
+    if (tab === "auth") {
+      localStorage.removeItem("dealflow-authenticated");
+      setIsAuthenticated(false);
+      setCurrentTab("auth");
+      return;
+    }
+
+    if (tab === "dashboard" && (currentTab === "auth" || currentTab === "create-account" || !isAuthenticated)) {
+      localStorage.setItem("dealflow-authenticated", "true");
+      setIsAuthenticated(true);
+    }
+
     setCurrentTab(tab);
     if ((tab === "billing-detail" || tab === "subscriptions") && data) {
       setSelectedSubscription(data);
@@ -96,6 +116,9 @@ function App() {
     }
     if ((tab === "invoices" || tab === "invoice-detail") && data) {
       setSelectedInvoice(data);
+    }
+    if ((tab === "quotations" || tab === "quotation-detail" || tab === "customer-portal" || tab === "orders") && data) {
+      setSelectedQuotation(data);
     }
     if ((tab === "product" || tab === "product-detail") && data) {
       setSelectedProduct(data);
@@ -122,12 +145,18 @@ function App() {
         return <FulfillmentDetail onNavigate={handleNavigate} data={selectedFulfillment} />;
       case "invoices":
         return <Invoices onNavigate={handleNavigate} />;
+      case "invoice-detail":
+        return <InvoiceDetailPage onNavigate={handleNavigate} invoice={selectedInvoice} />;
+      case "orders":
+        return <SalesOrders onNavigate={handleNavigate} quote={selectedQuotation} />;
       case "customer-portal":
-        return <CustomerPortal onNavigate={handleNavigate} />;
+        return <CustomerPortal onNavigate={handleNavigate} quote={selectedQuotation} />;
       case "dashboard":
         return <Dashboard onNavigate={handleNavigate} />;
       case "quotations":
         return <QuotationsPage onNavigate={handleNavigate} />;
+      case "quotation-detail":
+        return <QuotationDetailPage onNavigate={handleNavigate} quote={selectedQuotation} />;
       case "deal-health":
         return <DealHealthPage onNavigate={handleNavigate} />;
       case "reports":
@@ -168,6 +197,14 @@ function App() {
         );
     }
   };
+
+  if (currentTab === "create-account") {
+    return <CreateAccountPage onNavigate={handleNavigate} />;
+  }
+
+  if (!isAuthenticated || currentTab === "auth") {
+    return <AuthPage onNavigate={handleNavigate} />;
+  }
 
   return (
     <AppLayout

@@ -60,6 +60,9 @@ function CustomerPortal({ onNavigate }) {
 
     setQuoteStatus("CONFIRMED");
     setNotification("Quotation Q-1042 has been successfully CONFIRMED! Moving to Fulfillment & Invoicing.");
+    if (onNavigate) {
+      setTimeout(() => onNavigate("orders", { id: "Q-1042", customer: "Acme Corp", status: "Confirmed" }), 500);
+    }
   };
 
   return (

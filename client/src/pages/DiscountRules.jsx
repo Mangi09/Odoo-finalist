@@ -74,7 +74,7 @@ function DiscountRules({ onNavigate }) {
     { id: "invoices", label: "Invoices" },
     { id: "deal-health", label: "Deal Health" },
     { id: "reports", label: "Reports" },
-    { id: "products", label: "Products" },
+    { id: "product", label: "Products" },
     { id: "customer-portal", label: "Customer Portal" },
   ];
 
@@ -88,7 +88,7 @@ function DiscountRules({ onNavigate }) {
           {navItems.map((item) => (
             <button
               key={item.id}
-              className={item.id === "products" ? "active" : ""}
+              className={item.id === "product" ? "active" : ""}
               onClick={() => onNavigate && onNavigate(item.id)}
             >
               {item.label}
@@ -113,7 +113,7 @@ function DiscountRules({ onNavigate }) {
               fontSize: "12px",
               cursor: "pointer",
             }}
-            onClick={() => onNavigate && onNavigate("products")}
+            onClick={() => onNavigate && onNavigate("product")}
           >
             &larr; Back to Products
           </button>

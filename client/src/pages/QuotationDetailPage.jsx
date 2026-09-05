@@ -1,151 +1,73 @@
-import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
-import DashboardLayout from '../components/DashboardLayout';
-import QuotationHeader from '../components/QuotationHeader';
-import QuotationTimeline from '../components/QuotationTimeline';
-import { CustomerInfo, QuotationDetails } from '../components/QuotationInfoGrids';
-import LineItemsTable from '../components/LineItemsTable';
-import AddProductModal from '../components/AddProductModal';
-import FinancialSummary from '../components/FinancialSummary';
-import DiscountAnalysis from '../components/DiscountAnalysis';
-import NextActionCard from '../components/NextActionCard';
-import InternalNotes from '../components/InternalNotes';
-import ActivityHistory from '../components/ActivityHistory';
-import '../components/QuotationDetail.css';
+import React, { useState } from "react";
+import "../App.css";
 
-export default function QuotationDetailPage() {
-  const { id } = useParams();
-  const displayId = id || 'Q-1042'; // Fallback for direct access without ID
+const quoteLines = [
+  { product: "Laptop Pro 14", qty: 2, price: "$1,200", discount: "5%", limit: "15%", status: "OK" },
+  { product: "Onsite Setup Service", qty: 1, price: "$500", discount: "18%", limit: "10%", status: "OVER - High" },
+  { product: "Extended Warranty", qty: 1, price: "$90", discount: "10%", limit: "10%", status: "OK" },
+];
 
-  // Initial Mock Data
-  const initialData = {
-    id: displayId,
-    title: 'Enterprise Software Package',
-    stage: 'Negotiation',
-    customer: {
-      name: 'Acme Corporation',
-      contact: 'John Carter',
-      email: 'john.carter@acmecorp.com',
-      phone: '+91 98765 XXXXX',
-      category: 'Enterprise'
-    },
-    details: {
-      date: '12 September 2026',
-      validity: '30 September 2026',
-      salesperson: 'Atharva K.',
-      paymentTerms: 'Net 30',
-      currency: 'INR'
-    },
-    items: [
-      { id: 1, product: 'Enterprise Analytics Suite', description: 'Advanced analytics and reporting platform', quantity: 1, unitPrice: 350000, discountPercent: 10 },
-      { id: 2, product: 'Workflow Automation Module', description: 'Business workflow automation', quantity: 1, unitPrice: 150000, discountPercent: 5 },
-      { id: 3, product: 'Premium Support', description: 'Annual enterprise support', quantity: 1, unitPrice: 50000, discountPercent: 0 }
-    ],
-    activities: [
-      { title: 'Quotation created', time: 'Today, 10:20 AM' },
-      { title: 'Discount updated', time: 'Today, 11:05 AM' },
-      { title: 'Customer negotiation completed', time: 'Today, 12:30 PM' },
-      { title: 'Ready for approval', time: 'Today, 1:15 PM' }
-    ]
-  };
-
-  const [quotation, setQuotation] = useState(initialData);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [toastMessage, setToastMessage] = useState('');
-
-  // Auto-hide toast
-  useEffect(() => {
-    if (toastMessage) {
-      const timer = setTimeout(() => setToastMessage(''), 3000);
-      return () => clearTimeout(timer);
-    }
-  }, [toastMessage]);
-
-  const handleAddProduct = (newProduct) => {
-    const newItem = {
-      id: Date.now(),
-      ...newProduct
-    };
-    setQuotation(prev => ({
-      ...prev,
-      items: [...prev.items, newItem]
-    }));
-  };
-
-  const handleSubmitApproval = () => {
-    setQuotation(prev => ({
-      ...prev,
-      stage: 'Approval Pending',
-      activities: [
-        ...prev.activities,
-        { title: 'Submitted for manager approval', time: 'Just now' }
-      ]
-    }));
-    setToastMessage('Quotation submitted for approval.');
-  };
-
-  const handleSaveDraft = () => {
-    setToastMessage('Quotation draft saved successfully.');
-  };
+export default function QuotationDetailPage({ onNavigate, quote }) {
+  const [notice, setNotice] = useState("");
+  const title = `${quote?.id || "Q-1042"} (${quote?.customer || "Acme Corp"})`;
 
   return (
-    <DashboardLayout>
-      <div className="quotation-detail-page">
-
-        {/* Toast Notification */}
-        {toastMessage && (
-          <div style={{
-            position: 'fixed', bottom: '24px', right: '24px',
-            backgroundColor: 'var(--blue-slate)', color: 'var(--white)',
-            padding: '12px 24px', borderRadius: '8px', zIndex: 1000,
-            boxShadow: '0 10px 20px rgba(0,0,0,0.1)'
-          }}>
-            {toastMessage}
+    <main className="content">
+      <div className="page-card">
+        <div className="page-header">
+          <div className="page-header-left">
+            <span className="ops-label">Quotation Detail</span>
+            <h1>Quotation Detail: {title}</h1>
+            <p className="subtitle">Opened by clicking a row in the Quotations list. Add products, apply discounts, review quotes.</p>
           </div>
-        )}
+          <input type="text" defaultValue={title} aria-label="Quotation title" />
+        </div>
 
-        {/* Header */}
-        <QuotationHeader
-          quotation={quotation}
-          onSaveDraft={handleSaveDraft}
-          onSubmitApproval={handleSubmitApproval}
-        />
+        <div className="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Product</th>
+                <th>Qty</th>
+                <th>Price</th>
+                <th>Discount</th>
+                <th>Limit</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {quoteLines.map((line) => (
+                <tr key={line.product}>
+                  <td>{line.product}</td>
+                  <td>{line.qty}</td>
+                  <td>{line.price}</td>
+                  <td>{line.discount}</td>
+                  <td>{line.limit}</td>
+                  <td><span className={`badge ${line.status.includes("OVER") ? "red" : "green"}`}>{line.status}</span></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
 
-        {/* Timeline */}
-        <QuotationTimeline currentStage={quotation.stage} />
-
-        {/* Two Column Layout */}
-        <div className="qd-layout">
-
-          {/* Left Column */}
-          <div className="qd-left">
-            <CustomerInfo customer={quotation.customer} />
-            <QuotationDetails quotation={{ id: quotation.id, ...quotation.details }} />
-
-            <LineItemsTable
-              items={quotation.items}
-              onOpenAddModal={() => setIsModalOpen(true)}
-            />
-
-            <InternalNotes />
-          </div>
-
-          {/* Right Column */}
-          <div className="qd-right">
-            <FinancialSummary items={quotation.items} />
-            <DiscountAnalysis items={quotation.items} />
-            <NextActionCard stage={quotation.stage} onSubmitApproval={handleSubmitApproval} />
-            <ActivityHistory activities={quotation.activities} />
-          </div>
-
+        <div className="info-box" style={{ marginTop: "18px" }}>
+          Discount is checked against each line's own limit, as soon as it is entered, and by full order mix.
         </div>
       </div>
 
-      <AddProductModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        onAddProduct={handleAddProduct}
-      />
-    </DashboardLayout>
+      <div className="page-card">
+        <h2>Upsell and Cross-Sell Suggestions</h2>
+        <div className="mini-card-grid">
+          <div className="mini-card"><div className="mini-card-title">Wireless Mouse</div><div className="mini-card-value">Margin: 47%</div></div>
+          <div className="mini-card"><div className="mini-card-title">Docking Station</div><div className="mini-card-value">Often: 18% of deals</div></div>
+          <div className="mini-card"><div className="mini-card-title">Care Plan 2yr</div><div className="mini-card-value">Margin: 40%</div></div>
+        </div>
+        <div className="button-row" style={{ marginTop: "18px" }}>
+          <button className="btn-outline" onClick={() => setNotice("Draft saved.")}>Save Draft</button>
+          <button className="btn-primary" onClick={() => onNavigate && onNavigate("approvals", { quotation: "Q-1042", customer: "Acme Corp", risk: "HIGH", stage: "Sales Manager", assigned: "M. Shah" })}>Submit for Approval</button>
+        </div>
+        {notice && <div className="info-box" style={{ marginTop: "18px" }}>{notice}</div>}
+      </div>
+    </main>
   );
 }

@@ -1,7 +1,7 @@
 import React from "react";
 import "../App.css";
 
-export default function FulfillmentDetail({ data }) {
+export default function FulfillmentDetail({ data, onNavigate }) {
   const orderTitle = data ? `${data.order} (${data.customer})` : "Q-1042 (Acme Corp)";
 
   const splitData = [
@@ -44,32 +44,10 @@ export default function FulfillmentDetail({ data }) {
       </div>
 
       <div style={{ display: "flex", gap: "16px" }}>
-        <button
-          style={{
-            height: "40px",
-            padding: "0 24px",
-            borderRadius: "6px",
-            background: "#2b6cb0",
-            color: "white",
-            border: "none",
-            fontWeight: "600",
-            cursor: "pointer",
-          }}
-        >
+        <button className="btn-primary" onClick={() => onNavigate && onNavigate("orders")}>
           Accept Suggested Split
         </button>
-        <button
-          style={{
-            height: "40px",
-            padding: "0 24px",
-            borderRadius: "6px",
-            background: "white",
-            color: "#4a5568",
-            border: "1px solid #cbd5e0",
-            fontWeight: "500",
-            cursor: "pointer",
-          }}
-        >
+        <button className="btn-outline">
           Manual Override
         </button>
       </div>

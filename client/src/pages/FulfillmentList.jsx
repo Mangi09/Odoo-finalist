@@ -15,6 +15,7 @@ export default function FulfillmentList({ onNavigate }) {
 
   return (
     <main className="content">
+      <div className="page-card">
       <h1>Fulfillment and Stock (List)</h1>
       <p className="subtitle">
         Live stock per warehouse, plus every order that still needs fulfilling
@@ -74,6 +75,7 @@ export default function FulfillmentList({ onNavigate }) {
 
       <div className="info-box" style={{ background: "#fefcbf", color: "#744210", borderLeftColor: "#ecc94b" }}>
         Click an order row to open its warehouse split detail.
+      </div>
       </div>
     </main>
   );
