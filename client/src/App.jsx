@@ -11,6 +11,7 @@ import DealHealthPage from "./pages/DealHealthPage";
 import AdminDashboardPage from "./pages/AdminDashboardPage";
 import Products from "./pages/Products";
 import AuthPage from "./pages/AuthPage";
+import CreateAccountPage from "./pages/CreateAccountPage";
 import FulfillmentDetail from "./pages/FulfillmentDetail";
 import Navbar from "./components/Navbar";
 import './App.css';
@@ -67,6 +68,8 @@ function App() {
         return <Products onNavigate={handleNavigate} />;
       case "auth":
         return <AuthPage onNavigate={handleNavigate} />;
+      case "create-account":
+        return <CreateAccountPage onNavigate={handleNavigate} />;
       case "billing-detail":
         return (
           <main className="content">
@@ -109,7 +112,9 @@ function App() {
 
   return (
     <div className="app">
-      <Navbar currentTab={currentTab} onNavigate={handleNavigate} />
+      {currentTab !== "auth" && currentTab !== "create-account" && (
+        <Navbar currentTab={currentTab} onNavigate={handleNavigate} />
+      )}
       {renderContent()}
     </div>
   );
