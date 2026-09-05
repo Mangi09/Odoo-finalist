@@ -1,0 +1,13 @@
+{
+  "name": "odoo-finalist",
+  "version": "1.0.0",
+  "description": "Odoo Finalist Schema & Server API",
+  "main": "server/models/index.js",
+  "scripts": {
+    "init-db": "node scripts/init-db.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "mongoose": "^8.3.0"
+  }
+}
