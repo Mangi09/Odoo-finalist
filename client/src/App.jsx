@@ -2,17 +2,20 @@ import { useState } from "react";
 import Approvals from "./pages/approval5";
 import ApprovalDetail from "./pages/ApprovalDetail";
 import Subscriptions from "./pages/Subscriptions";
+import BillingDetail from "./pages/BillingDetail";
 import Invoices from "./pages/Invoices";
 import CustomerPortal from "./pages/CustomerPortal";
 import FulfillmentList from "./pages/FulfillmentList";
+import FulfillmentDetail from "./pages/FulfillmentDetail";
 import Dashboard from "./pages/Dashboard";
 import QuotationsPage from "./pages/QuotationsPage";
 import DealHealthPage from "./pages/DealHealthPage";
 import AdminDashboardPage from "./pages/AdminDashboardPage";
 import Products from "./pages/Products";
+import ProductDetail from "./pages/ProductDetail";
+import DiscountRules from "./pages/DiscountRules";
 import AuthPage from "./pages/AuthPage";
-import FulfillmentDetail from "./pages/FulfillmentDetail";
-import Navbar from "./components/Navbar";
+import AppLayout from "./components/AppLayout";
 import './App.css';
 
 const initialSubscriptions = [
@@ -42,21 +45,57 @@ const initialSubscriptions = [
 ];
 
 function App() {
-  const [currentTab, setCurrentTab] = useState("approvals");
-  const [selectedSubscription, setSelectedSubscription] = useState(null);
-  const [selectedApproval, setSelectedApproval] = useState(null);
-  const [selectedFulfillment, setSelectedFulfillment] = useState(null);
+  const [currentTab, setCurrentTab] = useState("dashboard");
+  const [selectedSubscription, setSelectedSubscription] = useState(initialSubscriptions[0]);
+  const [selectedApproval, setSelectedApproval] = useState({
+    quotation: "Q-1042",
+    customer: "Acme Corp",
+    risk: "HIGH",
+    stage: "Sales Manager",
+    assigned: "M. Shah"
+  });
+  const [selectedFulfillment, setSelectedFulfillment] = useState({
+    order: "Q-1042",
+    customer: "Acme Corp",
+    status: "Split Pending",
+    warehouses: "Main + East Depot"
+  });
+  const [selectedInvoice, setSelectedInvoice] = useState({
+    id: "INV-1042",
+    customer: "Acme Corp",
+    amount: "$2,730",
+    status: "Unpaid",
+    dueDate: "Sep 10",
+    type: "One-Time"
+  });
+  const [selectedProduct, setSelectedProduct] = useState({
+    id: "PROD-001",
+    name: "Laptop Pro 14",
+    category: "Hardware",
+    variants: "3 (size)",
+    price: "$1,200",
+    unit: "Each",
+    tax: "15%",
+    status: "Active",
+    billingType: "ONE_TIME"
+  });
 
   const handleNavigate = (tab, data) => {
     setCurrentTab(tab);
-    if (tab === "billing-detail" && data) {
+    if ((tab === "billing-detail" || tab === "subscriptions") && data) {
       setSelectedSubscription(data);
     }
-    if (tab === "approval-detail" && data) {
+    if ((tab === "approval-detail" || tab === "approvals") && data) {
       setSelectedApproval(data);
     }
-    if (tab === "fulfillment-detail" && data) {
+    if ((tab === "fulfillment-detail" || tab === "fulfillment" || tab === "fulfillment-list") && data) {
       setSelectedFulfillment(data);
+    }
+    if ((tab === "invoices" || tab === "invoice-detail") && data) {
+      setSelectedInvoice(data);
+    }
+    if ((tab === "product" || tab === "product-detail") && data) {
+      setSelectedProduct(data);
     }
   };
 
@@ -73,6 +112,7 @@ function App() {
         return <Approvals onNavigate={handleNavigate} />;
       case "approval-detail":
         return <ApprovalDetail onNavigate={handleNavigate} data={selectedApproval} />;
+      case "fulfillment":
       case "fulfillment-list":
         return <FulfillmentList onNavigate={handleNavigate} />;
       case "fulfillment-detail":
@@ -90,38 +130,29 @@ function App() {
       case "reports":
         return <AdminDashboardPage onNavigate={handleNavigate} />;
       case "product":
-        return <Products onNavigate={handleNavigate} />;
+        return (
+          <Products
+            onNavigate={handleNavigate}
+            onSelectProduct={(prod) => setSelectedProduct(prod)}
+          />
+        );
+      case "product-detail":
+        return (
+          <ProductDetail
+            product={selectedProduct}
+            onNavigate={handleNavigate}
+          />
+        );
+      case "discount-rules":
+        return <DiscountRules onNavigate={handleNavigate} />;
       case "auth":
         return <AuthPage onNavigate={handleNavigate} />;
       case "billing-detail":
         return (
-          <main className="content">
-            <h1>Billing Detail (Screen 10 Placeholder)</h1>
-            <p className="subtitle">
-              Screen 10 is ready to be implemented next.
-            </p>
-            {selectedSubscription ? (
-              <div className="info-box" style={{ height: "auto", padding: "12px" }}>
-                <strong>Selected Subscription:</strong> {selectedSubscription.customer} - {selectedSubscription.plan} ({selectedSubscription.cycle}) - Status: {selectedSubscription.status}
-              </div>
-            ) : (
-              <div className="info-box">No subscription selected.</div>
-            )}
-            <button
-              style={{
-                marginTop: "20px",
-                height: "40px",
-                padding: "0 14px",
-                borderRadius: "10px",
-                border: "1px solid #777",
-                background: "#fff",
-                cursor: "pointer",
-              }}
-              onClick={() => setCurrentTab("subscriptions")}
-            >
-              &larr; Back to Subscriptions List
-            </button>
-          </main>
+          <BillingDetail
+            subscription={selectedSubscription}
+            onNavigate={handleNavigate}
+          />
         );
       default:
         return (
@@ -134,10 +165,17 @@ function App() {
   };
 
   return (
-    <div className="app">
-      <Navbar currentTab={currentTab} onNavigate={handleNavigate} />
+    <AppLayout
+      currentTab={currentTab}
+      onNavigate={handleNavigate}
+      selectedSubscription={selectedSubscription}
+      selectedInvoice={selectedInvoice}
+      selectedProduct={selectedProduct}
+      selectedApproval={selectedApproval}
+      selectedFulfillment={selectedFulfillment}
+    >
       {renderContent()}
-    </div>
+    </AppLayout>
   );
 }
 
