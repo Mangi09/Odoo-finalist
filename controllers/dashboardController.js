@@ -1,0 +1,71 @@
+const Quotation = require('../models/Quotation');
+const Approval = require('../models/Approval');
+const DealHealth = require('../models/DealHealth');
+const ApiResponse = require('../utils/apiResponse');
+
+/**
+ * GET /api/v1/dashboard/summary
+ * Returns metrics: Open Deals, Pipeline Value, Action Required, etc.
+ */
+exports.getSummary = async (req, res, next) => {
+  try {
+    const openQuotes = await Quotation.find({
+      status: { $in: ['DRAFT', 'PENDING_APPROVAL', 'APPROVED', 'SENT', 'NEGOTIATION'] }
+    });
+
+    const openDealsCount = openQuotes.length;
+    const pipelineValue = openQuotes.reduce((acc, q) => acc + (q.totalAmount || 0), 0);
+
+    const pendingApprovalsCount = await Approval.countDocuments({ status: 'PENDING' });
+    const atRiskCount = await DealHealth.countDocuments({ status: { $in: ['AT_RISK', 'CRITICAL'] } });
+
+    // Format pipeline value display in Lakhs if INR or standard currency
+    const pipelineValueDisplay = `₹${(pipelineValue / 100000).toFixed(2)}L`;
+
+    return ApiResponse.success(res, {
+      openDeals: openDealsCount,
+      openDealsDescription: "Across active stages",
+      pipelineValue: pipelineValueDisplay,
+      pipelineRawValue: pipelineValue,
+      pipelineDescription: "Active opportunities",
+      actionRequired: pendingApprovalsCount + atRiskCount,
+      actionRequiredDescription: "Deals need attention",
+      pendingApprovals: pendingApprovalsCount,
+      atRiskDeals: atRiskCount
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * GET /api/v1/dashboard/recent-deals
+ */
+exports.getRecentDeals = async (req, res, next) => {
+  try {
+    const quotations = await Quotation.find()
+      .populate('customer')
+      .sort({ updatedAt: -1 })
+      .limit(10);
+
+    const formatted = quotations.map(q => {
+      const customerName = q.customer?.name || 'Unknown Customer';
+      const valDisplay = `₹${((q.totalAmount || 0) / 100000).toFixed(2)}L`;
+      return {
+        id: q.quotationNumber || `Q-${q._id.toString().slice(-4)}`,
+        _id: q._id,
+        customer: customerName,
+        title: q.title || `${customerName} Quotation`,
+        value: valDisplay,
+        rawAmount: q.totalAmount,
+        stage: q.status,
+        updated: q.updatedAt ? new Date(q.updatedAt).toLocaleDateString() : 'Recent',
+        isPriority: q.isPriority || false
+      };
+    });
+
+    return ApiResponse.success(res, formatted);
+  } catch (err) {
+    next(err);
+  }
+};
