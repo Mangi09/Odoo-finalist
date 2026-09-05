@@ -63,26 +63,7 @@ function Subscriptions({ subscriptionsList, onNavigate, onSelectSubscription }) 
   ];
 
   return (
-    <div className="app">
-      {/* Navigation */}
-      <nav className="navbar">
-        <div className="logo">DealFlow360</div>
-
-        <div className="nav-links">
-          {navItems.map((item) => (
-            <button
-              key={item.id}
-              className={item.id === "subscriptions" ? "active" : ""}
-              onClick={() => onNavigate && onNavigate(item.id)}
-            >
-              {item.label}
-            </button>
-          ))}
-        </div>
-      </nav>
-
-      {/* Main Content */}
-      <main className="content">
+    <main className="content">
         <h1>Subscriptions (List)</h1>
 
         <p className="subtitle">
@@ -170,7 +151,6 @@ function Subscriptions({ subscriptionsList, onNavigate, onSelectSubscription }) 
           </select>
         </div>
       </main>
-    </div>
   );
 }
 
