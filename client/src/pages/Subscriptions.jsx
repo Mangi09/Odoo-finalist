@@ -27,14 +27,16 @@ const defaultSubscriptions = [
   { id: "SUB-123", customer: "Wonka Industries", plan: "Care Plan 1yr", cycle: "Quarterly", nextBill: "Nov 18", status: "Active", amount: 1100 },
 ];
 
-function Subscriptions({ onNavigate, onSelectSubscription }) {
+function Subscriptions({ subscriptionsList, onNavigate, onSelectSubscription }) {
   const [filter, setFilter] = useState("all");
 
-  const activeCount = defaultSubscriptions.filter((s) => s.status === "Active").length;
-  const pausedCount = defaultSubscriptions.filter((s) => s.status === "Paused").length;
-  const cancelledCount = defaultSubscriptions.filter((s) => s.status === "Cancelled").length;
+  const subscriptions = subscriptionsList || defaultSubscriptions;
 
-  const filteredSubscriptions = defaultSubscriptions.filter((sub) => {
+  const activeCount = subscriptions.filter((s) => s.status === "Active").length;
+  const pausedCount = subscriptions.filter((s) => s.status === "Paused").length;
+  const cancelledCount = subscriptions.filter((s) => s.status === "Cancelled").length;
+
+  const filteredSubscriptions = subscriptions.filter((sub) => {
     if (filter === "all") return true;
     return sub.status.toLowerCase() === filter.toLowerCase();
   });
@@ -57,6 +59,7 @@ function Subscriptions({ onNavigate, onSelectSubscription }) {
     { id: "invoices", label: "Invoices" },
     { id: "deal-health", label: "Deal Health" },
     { id: "reports", label: "Reports" },
+    { id: "customer-portal", label: "Customer Portal" },
   ];
 
   return (
