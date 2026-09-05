@@ -1,77 +1,117 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import "../App.css";
+import { api } from "../services/api";
+import { RefreshCw } from "lucide-react";
 
 const defaultInvoices = [
-  { id: "INV-1042", customer: "Acme Corp", amount: "$2,730", status: "Unpaid", dueDate: "Sep 10", type: "One-Time" },
-  { id: "INV-1043", customer: "Acme Corp", amount: "$46", status: "Paid", dueDate: "Sep 15", type: "Recurring" },
-  { id: "INV-1038", customer: "Nova Retail", amount: "$9,750", status: "Paid", dueDate: "Aug 30", type: "One-Time" },
-  { id: "INV-1044", customer: "Beta Industries", amount: "$1,200", status: "Unpaid", dueDate: "Oct 01", type: "Recurring" },
-  { id: "INV-1045", customer: "Delta LLC", amount: "$3,400", status: "Paid", dueDate: "Jul 20", type: "One-Time" },
-  { id: "INV-1046", customer: "Apex Systems", amount: "$899", status: "Paid", dueDate: "Sep 01", type: "Recurring" },
-  { id: "INV-1047", customer: "CyberDyne Inc", amount: "$4,800", status: "Unpaid", dueDate: "Nov 15", type: "Recurring" },
-  { id: "INV-1048", customer: "Omni Consumer Products", amount: "$1,500", status: "Paid", dueDate: "Aug 15", type: "Recurring" },
-  { id: "INV-1049", customer: "Stark Logistics", amount: "$2,200", status: "Paid", dueDate: "Sep 05", type: "Recurring" },
-  { id: "INV-1050", customer: "Wayne Tech", amount: "$5,000", status: "Paid", dueDate: "Aug 10", type: "Recurring" },
-  { id: "INV-1051", customer: "Hooli Cloud", amount: "$650", status: "Paid", dueDate: "Sep 02", type: "Recurring" },
-  { id: "INV-1052", customer: "Pied Piper", amount: "$950", status: "Paid", dueDate: "Aug 28", type: "Recurring" },
-  { id: "INV-1053", customer: "Initech Solutions", amount: "$350", status: "Unpaid", dueDate: "Sep 12", type: "Recurring" },
-  { id: "INV-1054", customer: "Massive Dynamic", amount: "$4,200", status: "Paid", dueDate: "Jan 10", type: "Recurring" },
-  { id: "INV-1055", customer: "Umbrella Corp", amount: "$750", status: "Paid", dueDate: "Aug 19", type: "Recurring" },
-  { id: "INV-1056", customer: "Globex Corp", amount: "$1,800", status: "Paid", dueDate: "Aug 05", type: "Recurring" },
-  { id: "INV-1057", customer: "InGen Labs", amount: "$800", status: "Paid", dueDate: "Aug 08", type: "Recurring" },
-  { id: "INV-1058", customer: "Tyrell Corp", amount: "$6,000", status: "Paid", dueDate: "Aug 20", type: "Recurring" },
-  { id: "INV-1059", customer: "Oscorp Industries", amount: "$550", status: "Paid", dueDate: "Aug 22", type: "Recurring" },
-  { id: "INV-1060", customer: "Virtucon Systems", amount: "$450", status: "Paid", dueDate: "Sep 04", type: "Recurring" },
-  { id: "INV-1061", customer: "Wonka Industries", amount: "$1,100", status: "Paid", dueDate: "Aug 18", type: "Recurring" },
-  { id: "INV-1062", customer: "Cybertron Tech", amount: "$180", status: "Paid", dueDate: "Jul 15", type: "One-Time" },
-  { id: "INV-1063", customer: "Zenith Global", amount: "$150", status: "Paid", dueDate: "Jun 20", type: "One-Time" },
-  { id: "INV-1064", customer: "Soylent Corp", amount: "$120", status: "Paid", dueDate: "Jul 01", type: "One-Time" },
-  { id: "INV-1065", customer: "Acme Corp", amount: "$450", status: "Paid", dueDate: "Aug 01", type: "One-Time" },
+  { id: "INV-1042", customer: "Acme Corp", amount: "₹2,73,000", status: "Unpaid", dueDate: "Sep 10", type: "One-Time" },
+  { id: "INV-1043", customer: "Acme Corp", amount: "₹4,600", status: "Paid", dueDate: "Sep 15", type: "Recurring" },
+  { id: "INV-1038", customer: "Nova Retail", amount: "₹9,75,000", status: "Paid", dueDate: "Aug 30", type: "One-Time" },
+  { id: "INV-1044", customer: "Beta Industries", amount: "₹1,20,000", status: "Unpaid", dueDate: "Oct 01", type: "Recurring" },
+  { id: "INV-1045", customer: "Delta LLC", amount: "₹3,40,000", status: "Paid", dueDate: "Jul 20", type: "One-Time" },
+  { id: "INV-1046", customer: "Apex Systems", amount: "₹89,900", status: "Paid", dueDate: "Sep 01", type: "Recurring" },
+  { id: "INV-1047", customer: "CyberDyne Inc", amount: "₹4,80,000", status: "Unpaid", dueDate: "Nov 15", type: "Recurring" },
+  { id: "INV-1048", customer: "Omni Consumer Products", amount: "₹1,50,000", status: "Paid", dueDate: "Aug 15", type: "Recurring" },
+  { id: "INV-1049", customer: "Stark Logistics", amount: "₹2,20,000", status: "Paid", dueDate: "Sep 05", type: "Recurring" },
+  { id: "INV-1050", customer: "Wayne Tech", amount: "₹5,00,000", status: "Paid", dueDate: "Aug 10", type: "Recurring" },
 ];
 
 function Invoices({ onNavigate }) {
+  const [invoices, setInvoices] = useState(defaultInvoices);
   const [filter, setFilter] = useState("all");
+  const [loading, setLoading] = useState(false);
 
-  const unpaidCount = defaultInvoices.filter((i) => i.status === "Unpaid").length;
-  const paidCount = defaultInvoices.filter((i) => i.status === "Paid").length;
+  useEffect(() => {
+    loadInvoices();
+  }, []);
 
-  const filteredInvoices = defaultInvoices.filter((inv) => {
+  const loadInvoices = async () => {
+    setLoading(true);
+    try {
+      const data = await api.invoices.getAll();
+      if (Array.isArray(data) && data.length > 0) {
+        const mapped = data.map(inv => ({
+          _id: inv._id,
+          id: inv.id || `INV-${inv._id.toString().slice(-4).toUpperCase()}`,
+          customer: inv.customer || "Acme Corp",
+          amount: inv.amount || "₹2,73,000",
+          rawAmount: inv.rawAmount,
+          status: inv.status || "Unpaid",
+          dueDate: inv.dueDate || "Net 30",
+          type: inv.type || "One-Time",
+          salesOrderId: inv.salesOrderId
+        }));
+
+        const existingIds = new Set(mapped.map(m => m.id));
+        const combined = [...mapped, ...defaultInvoices.filter(d => !existingIds.has(d.id))];
+        setInvoices(combined);
+      }
+    } catch (err) {
+      console.warn("Invoices API fallback:", err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const unpaidCount = invoices.filter((i) => i.status.toLowerCase() === "unpaid").length;
+  const paidCount = invoices.filter((i) => i.status.toLowerCase() === "paid").length;
+
+  const filteredInvoices = invoices.filter((inv) => {
     if (filter === "all") return true;
     return inv.status.toLowerCase() === filter.toLowerCase();
   });
 
   const handleRowClick = (inv) => onNavigate && onNavigate("invoice-detail", inv);
 
-  const navItems = [
-    { id: "dashboard", label: "Dashboard" },
-    { id: "quotations", label: "Quotations" },
-    { id: "approvals", label: "Approvals" },
-    { id: "fulfillment", label: "Fulfillment" },
-    { id: "subscriptions", label: "Subscriptions" },
-    { id: "invoices", label: "Invoices" },
-    { id: "deal-health", label: "Deal Health" },
-    { id: "reports", label: "Reports" },
-    { id: "product", label: "Product" },
-    { id: "customer-portal", label: "Customer Portal" },
-  ];
-
   return (
     <main className="content">
-        <h1>Invoices (List)</h1>
-
-        <p className="subtitle">
-          Every invoice generated from one-time and recurring orders
-        </p>
+      <div className="page-card">
+        <div className="page-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div className="page-header-left">
+            <span className="ops-label">Billing Operations</span>
+            <h1>Invoices Ledger</h1>
+            <p className="subtitle">
+              Tax invoice generation, payment collections, and accounting ledger tracking.
+            </p>
+          </div>
+          <button className="btn-outline" onClick={loadInvoices} style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+            <RefreshCw size={14} className={loading ? "spin" : ""} />
+            <span>Refresh</span>
+          </button>
+        </div>
 
         {/* Status Counters */}
-        <div className="status-container">
-          <div className="status returned">
+        <div className="status-container" style={{ cursor: "pointer" }}>
+          <div
+            className="status returned"
+            onClick={() => setFilter(filter === "unpaid" ? "all" : "unpaid")}
+            style={{ outline: filter === "unpaid" ? "2px solid #e82d32" : "none" }}
+          >
             <span>{unpaidCount} Unpaid</span>
           </div>
 
-          <div className="status approved">
+          <div
+            className="status approved"
+            onClick={() => setFilter(filter === "paid" ? "all" : "paid")}
+            style={{ outline: filter === "paid" ? "2px solid #299b45" : "none" }}
+          >
             <span>{paidCount} Paid</span>
           </div>
+        </div>
+
+        {/* Filter Section */}
+        <div className="filter-section" style={{ margin: "14px 0" }}>
+          <label htmlFor="filter" style={{ marginRight: "8px", fontSize: "13px" }}>Filter Status:</label>
+          <select
+            id="filter"
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+            style={{ padding: "4px 10px", borderRadius: "6px", border: "1px solid #cbd5e0" }}
+          >
+            <option value="all">All Invoices ({invoices.length})</option>
+            <option value="unpaid">Unpaid Only ({unpaidCount})</option>
+            <option value="paid">Paid Only ({paidCount})</option>
+          </select>
         </div>
 
         {/* Invoice Table */}
@@ -84,19 +124,23 @@ function Invoices({ onNavigate }) {
                 <th>Amount</th>
                 <th>Status</th>
                 <th>Due Date</th>
+                <th>Type</th>
               </tr>
             </thead>
 
             <tbody>
               {filteredInvoices.map((inv) => (
-                <tr key={inv.id} onClick={() => handleRowClick(inv)}>
-                  <td style={{ fontWeight: "500" }}>{inv.id}</td>
+                <tr key={inv._id || inv.id} onClick={() => handleRowClick(inv)} style={{ cursor: "pointer" }}>
+                  <td style={{ fontWeight: 600, color: "#1a365d" }}>{inv.id}</td>
                   <td>{inv.customer}</td>
-                  <td>{inv.amount}</td>
-                  <td style={{ color: inv.status === "Unpaid" ? "#e82d32" : "#299b45", fontWeight: "500" }}>
-                    {inv.status}
+                  <td style={{ fontWeight: 600 }}>{inv.amount}</td>
+                  <td>
+                    <span className={`badge ${inv.status.toLowerCase() === "paid" ? "green" : "red"}`}>
+                      {inv.status}
+                    </span>
                   </td>
                   <td>{inv.dueDate}</td>
+                  <td>{inv.type || "One-Time"}</td>
                 </tr>
               ))}
             </tbody>
@@ -105,23 +149,10 @@ function Invoices({ onNavigate }) {
 
         {/* Information Box */}
         <div className="info-box" style={{ marginTop: "20px" }}>
-          Click an invoice row to open its full payment and delivery reconciliation detail.
+          Click an invoice row to open its full payment, PDF generation, and delivery reconciliation detail.
         </div>
-
-        {/* Filter Section */}
-        <div className="filter-section" style={{ marginTop: "18px" }}>
-          <label htmlFor="filter">Filter:</label>
-          <select
-            id="filter"
-            value={filter}
-            onChange={(e) => setFilter(e.target.value)}
-          >
-            <option value="all">All Invoices</option>
-            <option value="unpaid">Unpaid Only</option>
-            <option value="paid">Paid Only</option>
-          </select>
-        </div>
-      </main>
+      </div>
+    </main>
   );
 }
 

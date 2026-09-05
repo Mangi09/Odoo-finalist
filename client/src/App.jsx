@@ -18,6 +18,7 @@ import ProductDetail from "./pages/ProductDetail";
 import DiscountRules from "./pages/DiscountRules";
 import AuthPage from "./pages/AuthPage";
 import CreateAccountPage from "./pages/CreateAccountPage";
+import QuotationDetailPage from "./pages/QuotationDetailPage";
 
 import AppLayout from "./components/AppLayout";
 import './App.css';

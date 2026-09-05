@@ -65,40 +65,8 @@ function DiscountRules({ onNavigate }) {
     setNotification("Discount rules and approval chains configuration saved successfully!");
   };
 
-  const navItems = [
-    { id: "dashboard", label: "Dashboard" },
-    { id: "quotations", label: "Quotations" },
-    { id: "approvals", label: "Approvals" },
-    { id: "fulfillment", label: "Fulfillment" },
-    { id: "subscriptions", label: "Subscriptions" },
-    { id: "invoices", label: "Invoices" },
-    { id: "deal-health", label: "Deal Health" },
-    { id: "reports", label: "Reports" },
-    { id: "product", label: "Products" },
-    { id: "customer-portal", label: "Customer Portal" },
-  ];
-
   return (
-    <div className="app">
-      {/* Header Navigation */}
-      <nav className="navbar">
-        <div className="logo">DealFlow360</div>
-
-        <div className="nav-links">
-          {navItems.map((item) => (
-            <button
-              key={item.id}
-              className={item.id === "product" ? "active" : ""}
-              onClick={() => onNavigate && onNavigate(item.id)}
-            >
-              {item.label}
-            </button>
-          ))}
-        </div>
-      </nav>
-
-      {/* Main Content Area */}
-      <main className="content">
+    <main className="content">
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
           <h1>Discount tiers and approval chains</h1>
 
@@ -324,7 +292,6 @@ function DiscountRules({ onNavigate }) {
           When a quote mixes categories with different ceilings, the system must compute a blended risk score and route to the highest required level. All approvals, rejections, and edits must be logged with user, timestamp, and reason.
         </div>
       </main>
-    </div>
   );
 }
 

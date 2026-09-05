@@ -1,5 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import "../App.css";
+import { api } from "../services/api";
+import { RefreshCw } from "lucide-react";
 
 const defaultSubscriptions = [
   { id: "SUB-101", customer: "Acme Corp", plan: "Care Plan 2yr", cycle: "Monthly", nextBill: "Sep 15", status: "Active", amount: 499 },
@@ -10,31 +12,47 @@ const defaultSubscriptions = [
   { id: "SUB-106", customer: "Zenith Global", plan: "Basic SLA", cycle: "Monthly", nextBill: "-", status: "Cancelled", amount: 150 },
   { id: "SUB-107", customer: "CyberDyne Inc", plan: "Custom Support", cycle: "Yearly", nextBill: "Nov 15", status: "Active", amount: 4800 },
   { id: "SUB-108", customer: "Omni Consumer Products", plan: "Cloud Infrastructure", cycle: "Monthly", nextBill: "Oct 01", status: "Active", amount: 1500 },
-  { id: "SUB-109", customer: "Stark Logistics", plan: "Premium Support SLA", cycle: "Quarterly", nextBill: "Dec 01", status: "Active", amount: 2200 },
-  { id: "SUB-110", customer: "Wayne Tech", plan: "Care Plan 2yr", cycle: "Yearly", nextBill: "Aug 15", status: "Active", amount: 5000 },
-  { id: "SUB-111", customer: "Hooli Cloud", plan: "Support SLA", cycle: "Monthly", nextBill: "Oct 12", status: "Active", amount: 650 },
-  { id: "SUB-112", customer: "Pied Piper", plan: "Enterprise Care", cycle: "Monthly", nextBill: "Sep 28", status: "Active", amount: 950 },
-  { id: "SUB-113", customer: "Initech Solutions", plan: "Care Plan 1yr", cycle: "Monthly", nextBill: "-", status: "Paused", amount: 350 },
-  { id: "SUB-114", customer: "Massive Dynamic", plan: "NovaCloud Pro", cycle: "Yearly", nextBill: "Jan 10", status: "Active", amount: 4200 },
-  { id: "SUB-115", customer: "Umbrella Corp", plan: "Support SLA", cycle: "Monthly", nextBill: "Sep 19", status: "Active", amount: 750 },
-  { id: "SUB-116", customer: "Globex Corp", plan: "Care Plan 2yr", cycle: "Quarterly", nextBill: "Nov 05", status: "Active", amount: 1800 },
-  { id: "SUB-117", customer: "Soylent Corp", plan: "Basic SLA", cycle: "Monthly", nextBill: "-", status: "Cancelled", amount: 120 },
-  { id: "SUB-118", customer: "InGen Labs", plan: "Support SLA", cycle: "Monthly", nextBill: "Oct 08", status: "Active", amount: 800 },
-  { id: "SUB-119", customer: "Tyrell Corp", plan: "Enterprise Care", cycle: "Yearly", nextBill: "Dec 20", status: "Active", amount: 6000 },
-  { id: "SUB-120", customer: "Oscorp Industries", plan: "Care Plan 2yr", cycle: "Monthly", nextBill: "Sep 22", status: "Active", amount: 550 },
-  { id: "SUB-121", customer: "Virtucon Systems", plan: "Support SLA", cycle: "Monthly", nextBill: "Oct 04", status: "Active", amount: 450 },
-  { id: "SUB-122", customer: "Cybertron Tech", plan: "Basic SLA", cycle: "Monthly", nextBill: "-", status: "Cancelled", amount: 180 },
-  { id: "SUB-123", customer: "Wonka Industries", plan: "Care Plan 1yr", cycle: "Quarterly", nextBill: "Nov 18", status: "Active", amount: 1100 },
 ];
 
 function Subscriptions({ subscriptionsList, onNavigate, onSelectSubscription }) {
+  const [subscriptions, setSubscriptions] = useState(subscriptionsList || defaultSubscriptions);
   const [filter, setFilter] = useState("all");
+  const [loading, setLoading] = useState(false);
 
-  const subscriptions = subscriptionsList || defaultSubscriptions;
+  useEffect(() => {
+    loadSubscriptions();
+  }, []);
 
-  const activeCount = subscriptions.filter((s) => s.status === "Active").length;
-  const pausedCount = subscriptions.filter((s) => s.status === "Paused").length;
-  const cancelledCount = subscriptions.filter((s) => s.status === "Cancelled").length;
+  const loadSubscriptions = async () => {
+    setLoading(true);
+    try {
+      const data = await api.subscriptions.getAll();
+      if (Array.isArray(data) && data.length > 0) {
+        const mapped = data.map((s, idx) => ({
+          _id: s._id,
+          id: s.subscriptionNumber || `SUB-${String(idx + 101)}`,
+          customer: s.customer || s.salesOrderId?.customer || "Customer Corp",
+          plan: s.planName || s.productName || "Enterprise Care Plan",
+          cycle: s.billingCycle ? s.billingCycle.charAt(0).toUpperCase() + s.billingCycle.slice(1).toLowerCase() : "Monthly",
+          nextBill: s.nextBillingDate ? new Date(s.nextBillingDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : "Sep 15",
+          status: s.status === 'ACTIVE' ? "Active" : (s.status === 'PAUSED' ? "Paused" : "Cancelled"),
+          amount: s.amount || 499
+        }));
+
+        const existing = new Set(mapped.map(m => m.id));
+        const combined = [...mapped, ...defaultSubscriptions.filter(d => !existing.has(d.id))];
+        setSubscriptions(combined);
+      }
+    } catch (err) {
+      console.warn("Subscriptions API fallback:", err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const activeCount = subscriptions.filter((s) => s.status.toLowerCase() === "active").length;
+  const pausedCount = subscriptions.filter((s) => s.status.toLowerCase() === "paused").length;
+  const cancelledCount = subscriptions.filter((s) => s.status.toLowerCase() === "cancelled").length;
 
   const filteredSubscriptions = subscriptions.filter((sub) => {
     if (filter === "all") return true;
@@ -42,104 +60,106 @@ function Subscriptions({ subscriptionsList, onNavigate, onSelectSubscription }) 
   });
 
   const handleRowClick = (sub) => {
-    if (onSelectSubscription) {
-      onSelectSubscription(sub);
-    }
-    if (onNavigate) {
-      onNavigate("billing-detail", sub);
-    }
+    if (onSelectSubscription) onSelectSubscription(sub);
+    if (onNavigate) onNavigate("billing-detail", sub);
   };
-
-  const navItems = [
-    { id: "dashboard", label: "Dashboard" },
-    { id: "quotations", label: "Quotations" },
-    { id: "approvals", label: "Approvals" },
-    { id: "fulfillment", label: "Fulfillment" },
-    { id: "subscriptions", label: "Subscriptions" },
-    { id: "invoices", label: "Invoices" },
-    { id: "deal-health", label: "Deal Health" },
-    { id: "reports", label: "Reports" },
-    { id: "customer-portal", label: "Customer Portal" },
-  ];
 
   return (
     <main className="content">
       <div className="page-card">
-        <h1>Subscriptions (List)</h1>
+        <div className="page-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div className="page-header-left">
+            <span className="ops-label">Recurring Revenue</span>
+            <h1>Subscriptions (MRR)</h1>
+            <p className="subtitle">
+              Recurring service agreements, billing schedules, and automated contract renewals.
+            </p>
+          </div>
+          <button className="btn-outline" onClick={loadSubscriptions} style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+            <RefreshCw size={14} className={loading ? "spin" : ""} />
+            <span>Refresh</span>
+          </button>
+        </div>
 
-        <p className="subtitle">
-          Every recurring plan across every customer, regardless of which order it came from
-        </p>
-
-        <div className="status-container">
-          <div className="status approved">
+        {/* Status Counters */}
+        <div className="status-container" style={{ cursor: "pointer" }}>
+          <div
+            className="status approved"
+            onClick={() => setFilter(filter === "active" ? "all" : "active")}
+            style={{ outline: filter === "active" ? "2px solid #299b45" : "none" }}
+          >
             <span>{activeCount} Active</span>
           </div>
 
-          <div className="status pending">
+          <div
+            className="status pending"
+            onClick={() => setFilter(filter === "paused" ? "all" : "paused")}
+            style={{ outline: filter === "paused" ? "2px solid #f49a00" : "none" }}
+          >
             <span>{pausedCount} Paused</span>
           </div>
 
-          <div className="status returned">
+          <div
+            className="status returned"
+            onClick={() => setFilter(filter === "cancelled" ? "all" : "cancelled")}
+            style={{ outline: filter === "cancelled" ? "2px solid #e82d32" : "none" }}
+          >
             <span>{cancelledCount} Cancelled</span>
           </div>
         </div>
-      </div>
 
-      <div className="page-card">
+        {/* Filter Section */}
+        <div className="filter-section" style={{ margin: "14px 0" }}>
+          <label htmlFor="filter" style={{ marginRight: "8px", fontSize: "13px" }}>Filter Plan Status:</label>
+          <select
+            id="filter"
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+            style={{ padding: "4px 10px", borderRadius: "6px", border: "1px solid #cbd5e0" }}
+          >
+            <option value="all">All Subscriptions ({subscriptions.length})</option>
+            <option value="active">Active Only ({activeCount})</option>
+            <option value="paused">Paused Only ({pausedCount})</option>
+            <option value="cancelled">Cancelled Only ({cancelledCount})</option>
+          </select>
+        </div>
+
+        {/* Subscriptions Table */}
         <div className="table-wrapper">
           <table>
             <thead>
               <tr>
+                <th>Subscription ID</th>
                 <th>Customer</th>
-                <th>Plan</th>
-                <th>Cycle</th>
-                <th>Next Bill</th>
+                <th>Service Plan</th>
+                <th>Billing Cycle</th>
+                <th>Next Billing</th>
                 <th>Status</th>
+                <th>MRR / Amount</th>
               </tr>
             </thead>
-
             <tbody>
               {filteredSubscriptions.map((sub) => (
-                <tr key={sub.id} onClick={() => handleRowClick(sub)}>
+                <tr key={sub._id || sub.id} onClick={() => handleRowClick(sub)} style={{ cursor: "pointer" }}>
+                  <td style={{ fontWeight: 600, color: "#1a365d" }}>{sub.id}</td>
                   <td>{sub.customer}</td>
                   <td>{sub.plan}</td>
                   <td>{sub.cycle}</td>
                   <td>{sub.nextBill}</td>
-                  <td>{sub.status}</td>
+                  <td>
+                    <span className={`badge ${sub.status.toLowerCase() === "active" ? "green" : (sub.status.toLowerCase() === "paused" ? "orange" : "red")}`}>
+                      {sub.status}
+                    </span>
+                  </td>
+                  <td style={{ fontWeight: 600 }}>₹{(sub.amount * 80).toLocaleString('en-IN')}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-      </div>
 
-      <div className="page-card">
-        <div className="info-box">
-          Click a subscription row to open its billing detail and proration history.
-        </div>
-
-        <div>
-          <button
-            className="btn-outline"
-            onClick={() => alert("New Plan creation dialog (Admin restricted)")}
-          >
-            + New Plan (Admin)
-          </button>
-        </div>
-
-        <div className="filter-section">
-          <label htmlFor="filter">Filter:</label>
-          <select
-            id="filter"
-            value={filter}
-            onChange={(e) => setFilter(e.target.value)}
-          >
-            <option value="all">All Statuses</option>
-            <option value="active">Active Only</option>
-            <option value="paused">Paused Only</option>
-            <option value="cancelled">Cancelled Only</option>
-          </select>
+        <div className="info-box" style={{ marginTop: "20px" }}>
+          Click any subscription row to inspect its recurring billing contract, payment history, and auto-renewal triggers.
         </div>
       </div>
     </main>
