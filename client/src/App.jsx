@@ -12,7 +12,7 @@ import AdminDashboardPage from "./pages/AdminDashboardPage";
 import Products from "./pages/Products";
 import AuthPage from "./pages/AuthPage";
 import FulfillmentDetail from "./pages/FulfillmentDetail";
-import Navbar from "./components/Navbar";
+import Sidebar from "./components/Sidebar";
 import './App.css';
 
 const initialSubscriptions = [
@@ -61,6 +61,9 @@ function App() {
   };
 
   const renderContent = () => {
+    // Hide rendering on auth/landing
+    if (currentTab === "auth") return <AuthPage onNavigate={handleNavigate} />;
+    
     switch (currentTab) {
       case "subscriptions":
         return (
@@ -91,8 +94,6 @@ function App() {
         return <AdminDashboardPage onNavigate={handleNavigate} />;
       case "product":
         return <Products onNavigate={handleNavigate} />;
-      case "auth":
-        return <AuthPage onNavigate={handleNavigate} />;
       case "billing-detail":
         return (
           <main className="content">
@@ -133,10 +134,17 @@ function App() {
     }
   };
 
+  // If Auth (Login), render without Sidebar
+  if (currentTab === "auth") {
+    return <div className="app-auth-wrapper">{renderContent()}</div>;
+  }
+
   return (
     <div className="app">
-      <Navbar currentTab={currentTab} onNavigate={handleNavigate} />
-      {renderContent()}
+      <Sidebar currentTab={currentTab} onNavigate={handleNavigate} />
+      <div className="main-content-wrapper">
+        {renderContent()}
+      </div>
     </div>
   );
 }
