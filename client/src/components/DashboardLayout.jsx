@@ -1,4 +1,5 @@
 import React from 'react';
+<<<<<<< HEAD
 import Sidebar from './Sidebar';
 import Topbar from './Topbar';
 import './Dashboard.css';
@@ -22,4 +23,14 @@ export default function DashboardLayout({ children }) {
       </main>
     </div>
   );
+=======
+
+/**
+ * Multi-developer safety wrapper.
+ * Ensures teammate pages importing DashboardLayout (e.g. QuotationDetailPage, InvoiceDetailPage)
+ * compile and mount cleanly inside the application shell.
+ */
+export default function DashboardLayout({ children }) {
+  return <div className="dashboard-layout-inner">{children}</div>;
+>>>>>>> origin/vibha
 }
