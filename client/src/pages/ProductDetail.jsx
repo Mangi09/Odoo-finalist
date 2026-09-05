@@ -81,7 +81,7 @@ function ProductDetail({ product, onNavigate, onSaveProduct }) {
 
     setNotification(`Product "${formData.name}" saved successfully!`);
     setTimeout(() => {
-      if (onNavigate) onNavigate("products");
+      if (onNavigate) onNavigate("product");
     }, 800);
   };
 
@@ -94,7 +94,7 @@ function ProductDetail({ product, onNavigate, onSaveProduct }) {
     { id: "invoices", label: "Invoices" },
     { id: "deal-health", label: "Deal Health" },
     { id: "reports", label: "Reports" },
-    { id: "products", label: "Products" },
+    { id: "product", label: "Products" },
     { id: "customer-portal", label: "Customer Portal" },
   ];
 
@@ -108,7 +108,7 @@ function ProductDetail({ product, onNavigate, onSaveProduct }) {
           {navItems.map((item) => (
             <button
               key={item.id}
-              className={item.id === "products" ? "active" : ""}
+              className={item.id === "product" ? "active" : ""}
               onClick={() => onNavigate && onNavigate(item.id)}
             >
               {item.label}
@@ -134,7 +134,7 @@ function ProductDetail({ product, onNavigate, onSaveProduct }) {
                 fontSize: "12px",
                 cursor: "pointer",
               }}
-              onClick={() => onNavigate && onNavigate("products")}
+              onClick={() => onNavigate && onNavigate("product")}
             >
               &larr; Back to Products
             </button>

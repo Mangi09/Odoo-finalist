@@ -105,130 +105,111 @@ function BillingDetail({ subscription, onNavigate, onUpdateSubscriptionStatus })
 
       {/* Main Content */}
       <main className="content">
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <h1>
-            Billing Detail: {customerName} - {planName}
-          </h1>
+        <div className="page-card">
+          <div className="page-header">
+            <h1>
+              Billing Detail: {customerName} - {planName}
+            </h1>
 
-          <button
-            style={{
-              height: "34px",
-              padding: "0 14px",
-              borderRadius: "8px",
-              border: "1px solid #1976bd",
-              background: "#1976bd",
-              color: "#ffffff",
-              fontSize: "12px",
-              cursor: "pointer",
-            }}
-            onClick={() => onNavigate && onNavigate("subscriptions")}
-          >
-            &larr; Back to Subscriptions
-          </button>
-        </div>
-
-        {notification && (
-          <div className="info-box" style={{ marginTop: "12px", marginBottom: "12px" }}>
-            {notification}
+            <button
+              className="btn-secondary"
+              onClick={() => onNavigate && onNavigate("subscriptions")}
+            >
+              &larr; Back to Subscriptions
+            </button>
           </div>
-        )}
 
-        <div style={{ marginTop: "6px", marginBottom: "18px", fontSize: "13px", color: "#555" }}>
-          Status: <strong style={{ color: subStatus === "Cancelled" ? "#e82d32" : "#299b45" }}>{subStatus}</strong>
+          {notification && (
+            <div className="info-box">
+              {notification}
+            </div>
+          )}
+
+          <div>
+            Status: <strong style={{ color: subStatus === "Cancelled" ? "#e82d32" : "#299b45" }}>{subStatus}</strong>
+          </div>
         </div>
 
         {/* Section 1: One-Time Lines */}
-        <section style={{ marginTop: "15px" }}>
-          <h2 style={{ fontSize: "15px", fontWeight: "600", marginBottom: "10px", color: "#222" }}>
-            One-Time Lines (from originating order)
-          </h2>
+        <div className="page-card">
+          <section>
+            <h2>
+              One-Time Lines (from originating order)
+            </h2>
 
-          <div className="table-wrapper">
-            <table>
-              <thead>
-                <tr>
-                  <th>Product</th>
-                  <th>Qty</th>
-                  <th>Amount</th>
-                </tr>
-              </thead>
-              <tbody>
-                {customerData.oneTime.map((line, idx) => (
-                  <tr key={idx}>
-                    <td>{line.product}</td>
-                    <td>{line.qty}</td>
-                    <td>{line.amount}</td>
+            <div className="table-wrapper">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Product</th>
+                    <th>Qty</th>
+                    <th>Amount</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
+                </thead>
+                <tbody>
+                  {customerData.oneTime.map((line, idx) => (
+                    <tr key={idx}>
+                      <td>{line.product}</td>
+                      <td>{line.qty}</td>
+                      <td>{line.amount}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </div>
 
         {/* Section 2: Recurring Lines */}
-        <section style={{ marginTop: "24px" }}>
-          <h2 style={{ fontSize: "15px", fontWeight: "600", marginBottom: "10px", color: "#222" }}>
-            Recurring Lines
-          </h2>
+        <div className="page-card">
+          <section>
+            <h2>
+              Recurring Lines
+            </h2>
 
-          <div className="table-wrapper">
-            <table>
-              <thead>
-                <tr>
-                  <th>Plan</th>
-                  <th>Cycle</th>
-                  <th>Next Bill Date</th>
-                  <th>Amount</th>
-                </tr>
-              </thead>
-              <tbody>
-                {customerData.recurring.map((line, idx) => (
-                  <tr key={idx}>
-                    <td>{line.plan}</td>
-                    <td>{line.cycle}</td>
-                    <td>{subStatus === "Cancelled" ? "-" : line.nextBill}</td>
-                    <td>{line.amount}</td>
+            <div className="table-wrapper">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Plan</th>
+                    <th>Cycle</th>
+                    <th>Next Bill Date</th>
+                    <th>Amount</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
+                </thead>
+                <tbody>
+                  {customerData.recurring.map((line, idx) => (
+                    <tr key={idx}>
+                      <td>{line.plan}</td>
+                      <td>{line.cycle}</td>
+                      <td>{subStatus === "Cancelled" ? "-" : line.nextBill}</td>
+                      <td>{line.amount}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </div>
 
         {/* Section 3: Actions */}
-        <div style={{ display: "flex", gap: "12px", marginTop: "25px" }}>
-          <button
-            style={{
-              height: "40px",
-              padding: "0 16px",
-              borderRadius: "10px",
-              border: "1px solid #777",
-              background: "#ffffff",
-              fontSize: "12px",
-              cursor: "pointer",
-              color: "#222",
-            }}
-            onClick={() => setShowModifyModal(true)}
-          >
-            Modify Subscription
-          </button>
+        <div className="page-card">
+          <div className="page-header-left" style={{ display: "flex", gap: "12px" }}>
+            <button
+              className="btn-outline"
+              onClick={() => setShowModifyModal(true)}
+            >
+              Modify Subscription
+            </button>
 
-          <button
-            style={{
-              height: "40px",
-              padding: "0 16px",
-              borderRadius: "10px",
-              border: "1px solid #222",
-              background: "#e82d32",
-              color: "#ffffff",
-              fontSize: "12px",
-              cursor: "pointer",
-            }}
-            onClick={handleCancel}
-            disabled={subStatus === "Cancelled"}
-          >
-            {subStatus === "Cancelled" ? "Cancelled" : "Cancel Subscription"}
-          </button>
+            <button
+              className="btn-danger"
+              onClick={handleCancel}
+              disabled={subStatus === "Cancelled"}
+            >
+              {subStatus === "Cancelled" ? "Cancelled" : "Cancel Subscription"}
+            </button>
+          </div>
         </div>
 
         {/* Modify Modal */}
@@ -256,23 +237,15 @@ function BillingDetail({ subscription, onNavigate, onUpdateSubscriptionStatus })
                 border: "2px solid #c5c5c5",
               }}
             >
-              <h3 style={{ fontSize: "16px", marginBottom: "12px" }}>Modify Subscription Cycle</h3>
+              <h3>Modify Subscription Cycle</h3>
               <form onSubmit={handleModifySubmit}>
-                <div style={{ marginBottom: "16px" }}>
-                  <label style={{ display: "block", fontSize: "12px", marginBottom: "6px", color: "#555" }}>
+                <div>
+                  <label>
                     Billing Cycle:
                   </label>
                   <select
                     value={selectedCycle}
                     onChange={(e) => setSelectedCycle(e.target.value)}
-                    style={{
-                      width: "100%",
-                      height: "36px",
-                      borderRadius: "6px",
-                      border: "1px solid #777",
-                      padding: "0 8px",
-                      fontSize: "12px",
-                    }}
                   >
                     <option value="Monthly">Monthly</option>
                     <option value="Quarterly">Quarterly</option>
@@ -282,31 +255,14 @@ function BillingDetail({ subscription, onNavigate, onUpdateSubscriptionStatus })
                 <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px" }}>
                   <button
                     type="button"
+                    className="btn-outline"
                     onClick={() => setShowModifyModal(false)}
-                    style={{
-                      height: "34px",
-                      padding: "0 12px",
-                      borderRadius: "6px",
-                      border: "1px solid #777",
-                      background: "#fff",
-                      cursor: "pointer",
-                      fontSize: "12px",
-                    }}
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
-                    style={{
-                      height: "34px",
-                      padding: "0 14px",
-                      borderRadius: "6px",
-                      border: "1px solid #1976bd",
-                      background: "#1976bd",
-                      color: "#fff",
-                      cursor: "pointer",
-                      fontSize: "12px",
-                    }}
+                    className="btn-primary"
                   >
                     Save Changes
                   </button>

@@ -47,135 +47,59 @@ function Products({ onNavigate, onSelectProduct }) {
   ];
 
   return (
-    <div className="app">
-      {/* Internal Header Navigation */}
-      <nav className="navbar">
-        <div className="logo">DealFlow360</div>
-
-        <div className="nav-links">
-          {navItems.map((item) => (
-            <button
-              key={item.id}
-              className={item.id === "products" ? "active" : ""}
-              onClick={() => onNavigate && onNavigate(item.id)}
-            >
-              {item.label}
-            </button>
-          ))}
+    <main className="content">
+      <div className="page-card">
+        <div className="page-header">
+          <div className="page-header-left">
+            <h1>Product catalog</h1>
+            <p className="subtitle">Every product, variant and price list in one place.</p>
+          </div>
         </div>
-      </nav>
 
-      {/* Main Content Area */}
-      <main className="content">
-        <h1>Product catalog</h1>
-        <p className="subtitle">Every product, variant and price list in one place.</p>
-
-        {/* Action Header Buttons */}
-        <div style={{ display: "flex", gap: "12px", marginBottom: "22px" }}>
+        <div className="button-row page-actions">
           <button
-            style={{
-              height: "40px",
-              padding: "0 20px",
-              borderRadius: "10px",
-              border: "1px solid #1976bd",
-              background: "#1976bd",
-              color: "#ffffff",
-              fontSize: "12px",
-              fontWeight: "500",
-              cursor: "pointer",
-            }}
+            className="btn-primary"
             onClick={() => onNavigate && onNavigate("product-detail", { isNew: true })}
           >
             + New Product
           </button>
 
           <button
-            style={{
-              height: "40px",
-              padding: "0 20px",
-              borderRadius: "10px",
-              border: "1px solid #777",
-              background: "#ffffff",
-              color: "#1976bd",
-              fontSize: "12px",
-              cursor: "pointer",
-            }}
+            className="btn-secondary"
             onClick={() => onNavigate && onNavigate("discount-rules")}
           >
             Manage Price Rules
           </button>
         </div>
 
-        {/* Summary Metric Cards */}
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-            gap: "16px",
-            marginBottom: "24px",
-          }}
-        >
-          <div
-            style={{
-              background: "#f8f9fa",
-              border: "1px solid #c5c5c5",
-              borderRadius: "12px",
-              padding: "16px 20px",
-            }}
-          >
-            <div style={{ fontSize: "14px", fontWeight: "600", color: "#222", marginBottom: "6px" }}>
-              Total Products
-            </div>
-            <div style={{ fontSize: "12px", color: "#555" }}>{totalActive} active, 0 archived</div>
+        <div className="metrics-container">
+          <div className="metric-card">
+            <div className="metric-label">Total Products</div>
+            <div className="metric-value">{totalActive}</div>
+            <div className="metric-sub">active, 0 archived</div>
           </div>
 
-          <div
-            style={{
-              background: "#f8f9fa",
-              border: "1px solid #c5c5c5",
-              borderRadius: "12px",
-              padding: "16px 20px",
-            }}
-          >
-            <div style={{ fontSize: "14px", fontWeight: "600", color: "#222", marginBottom: "6px" }}>
-              Pricelists
-            </div>
-            <div style={{ fontSize: "12px", color: "#555" }}>3 tiers (Bronze, Silver, Gold), 2 Currencies</div>
+          <div className="metric-card">
+            <div className="metric-label">Pricelists</div>
+            <div className="metric-value">3 tiers</div>
+            <div className="metric-sub">Bronze, Silver, Gold, 2 Currencies</div>
           </div>
 
-          <div
-            style={{
-              background: "#f8f9fa",
-              border: "1px solid #c5c5c5",
-              borderRadius: "12px",
-              padding: "16px 20px",
-            }}
-          >
-            <div style={{ fontSize: "14px", fontWeight: "600", color: "#222", marginBottom: "6px" }}>
-              Variants
-            </div>
-            <div style={{ fontSize: "12px", color: "#555" }}>340 SKUs across all products</div>
+          <div className="metric-card">
+            <div className="metric-label">Variants</div>
+            <div className="metric-value">340</div>
+            <div className="metric-sub">SKUs across all products</div>
+          </div>
+        </div>
+      </div>
+
+      <div className="page-card">
+        <div className="section-header">
+          <div className="section-title-small">
+            <span className="badge purple">Products</span>
           </div>
         </div>
 
-        {/* Section Sub-Header Badge */}
-        <div style={{ marginBottom: "12px" }}>
-          <span
-            style={{
-              display: "inline-block",
-              padding: "4px 16px",
-              borderRadius: "8px",
-              border: "1px solid #1976bd",
-              color: "#1976bd",
-              fontSize: "13px",
-              fontWeight: "500",
-            }}
-          >
-            Products
-          </span>
-        </div>
-
-        {/* Products Table */}
         <div className="table-wrapper">
           <table>
             <thead>
@@ -192,26 +116,24 @@ function Products({ onNavigate, onSelectProduct }) {
             <tbody>
               {filteredProducts.map((p) => (
                 <tr key={p.id} onClick={() => handleRowClick(p)}>
-                  <td style={{ fontWeight: "500" }}>{p.name}</td>
+                  <td className="text-medium">{p.name}</td>
                   <td>{p.category}</td>
                   <td>{p.variants}</td>
                   <td>{p.price}</td>
                   <td>{p.unit}</td>
                   <td>{p.tax}</td>
-                  <td style={{ color: "#299b45", fontWeight: "500" }}>{p.status}</td>
+                  <td><span className="badge green">{p.status}</span></td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
 
-        {/* Information Banner Box */}
-        <div className="info-box" style={{ marginTop: "20px" }}>
+        <div className="info-box">
           Click a product row to open general info, variants and tier/currency price lists.
         </div>
 
-        {/* Filter Section */}
-        <div className="filter-section" style={{ marginTop: "18px" }}>
+        <div className="filter-section">
           <label htmlFor="filter">Filter Category:</label>
           <select
             id="filter"
@@ -226,8 +148,8 @@ function Products({ onNavigate, onSelectProduct }) {
             <option value="software">Software</option>
           </select>
         </div>
+      </div>
       </main>
-    </div>
   );
 }
 

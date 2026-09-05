@@ -60,31 +60,13 @@ function CustomerPortal({ onNavigate }) {
 
     setQuoteStatus("CONFIRMED");
     setNotification("Quotation Q-1042 has been successfully CONFIRMED! Moving to Fulfillment & Invoicing.");
+    if (onNavigate) {
+      setTimeout(() => onNavigate("orders", { id: "Q-1042", customer: "Acme Corp", status: "Confirmed" }), 500);
+    }
   };
 
   return (
-    <div className="app">
-      {/* Customer Portal Navigation Header */}
-      <nav className="navbar">
-        <div className="logo">DealFlow360</div>
-
-        <div className="nav-links">
-          <button className="active">My Quotation</button>
-          <button onClick={() => alert("Messages view")}>Messages</button>
-          <button onClick={() => alert("Profile view")}>Profile</button>
-
-          {/* Helper button to return to internal view */}
-          <button
-            style={{ marginLeft: "auto", opacity: 0.8 }}
-            onClick={() => onNavigate && onNavigate("subscriptions")}
-          >
-            &larr; Exit Portal (Internal View)
-          </button>
-        </div>
-      </nav>
-
-      {/* Main Customer Portal Content */}
-      <main className="content">
+    <main className="content">
         <h1>Customer Portal Negotiation Screen</h1>
 
         <p className="subtitle">
@@ -251,7 +233,6 @@ function CustomerPortal({ onNavigate }) {
           If final terms exceed thresholds, the quote automatically re-enters approval (Screen 6).
         </div>
       </main>
-    </div>
   );
 }
 

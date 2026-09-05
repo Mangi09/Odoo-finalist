@@ -31,7 +31,6 @@ const defaultInvoices = [
 
 function Invoices({ onNavigate }) {
   const [filter, setFilter] = useState("all");
-  const [selectedInvoice, setSelectedInvoice] = useState(null);
 
   const unpaidCount = defaultInvoices.filter((i) => i.status === "Unpaid").length;
   const paidCount = defaultInvoices.filter((i) => i.status === "Paid").length;
@@ -41,9 +40,7 @@ function Invoices({ onNavigate }) {
     return inv.status.toLowerCase() === filter.toLowerCase();
   });
 
-  const handleRowClick = (inv) => {
-    setSelectedInvoice(inv);
-  };
+  const handleRowClick = (inv) => onNavigate && onNavigate("invoice-detail", inv);
 
   const navItems = [
     { id: "dashboard", label: "Dashboard" },
@@ -59,26 +56,7 @@ function Invoices({ onNavigate }) {
   ];
 
   return (
-    <div className="app">
-      {/* Navigation */}
-      <nav className="navbar">
-        <div className="logo">DealFlow360</div>
-
-        <div className="nav-links">
-          {navItems.map((item) => (
-            <button
-              key={item.id}
-              className={item.id === "invoices" ? "active" : ""}
-              onClick={() => onNavigate && onNavigate(item.id)}
-            >
-              {item.label}
-            </button>
-          ))}
-        </div>
-      </nav>
-
-      {/* Main Content */}
-      <main className="content">
+    <main className="content">
         <h1>Invoices (List)</h1>
 
         <p className="subtitle">
@@ -95,36 +73,6 @@ function Invoices({ onNavigate }) {
             <span>{paidCount} Paid</span>
           </div>
         </div>
-
-        {selectedInvoice && (
-          <div
-            className="info-box"
-            style={{
-              marginBottom: "16px",
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-            }}
-          >
-            <div>
-              <strong>Reconciliation Detail [{selectedInvoice.id}]:</strong> {selectedInvoice.customer} &mdash; {selectedInvoice.amount} ({selectedInvoice.type}) &bull; Status: <em>{selectedInvoice.status}</em> &bull; Due: {selectedInvoice.dueDate}
-            </div>
-            <button
-              style={{
-                marginLeft: "12px",
-                padding: "2px 8px",
-                borderRadius: "4px",
-                border: "1px solid #555",
-                background: "#fff",
-                cursor: "pointer",
-                fontSize: "11px",
-              }}
-              onClick={() => setSelectedInvoice(null)}
-            >
-              Close
-            </button>
-          </div>
-        )}
 
         {/* Invoice Table */}
         <div className="table-wrapper">
@@ -174,7 +122,6 @@ function Invoices({ onNavigate }) {
           </select>
         </div>
       </main>
-    </div>
   );
 }
 

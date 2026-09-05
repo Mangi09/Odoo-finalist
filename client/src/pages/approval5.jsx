@@ -1,6 +1,19 @@
 import "../App.css";
-
-function App() {
+import {
+  LayoutDashboard,
+  FileText,
+  CheckCircle,
+  Package,
+  RefreshCw,
+  Receipt,
+  HeartPulse,
+  BarChart3,
+  Box,
+  CircleCheck,
+  CircleStar,
+  House
+} from "lucide-react"
+function Approvals({ onNavigate }) {
   const approvals = [
     {
       quotation: "Q-1042",
@@ -26,26 +39,8 @@ function App() {
   ];
 
   return (
-    <div className="app">
-      {/* Navigation */}
-      <nav className="navbar">
-        <div className="logo">DealFlow360</div>
-
-        <div className="nav-links">
-          <button>Dashboard</button>
-          <button>Quotations</button>
-          <button className="active">Approvals</button>
-          <button>Fulfillment</button>
-          <button>Subscriptions</button>
-          <button>Invoices</button>
-          <button>Deal Health</button>
-          <button>Reports</button>
-          <button>Product</button>
-        </div>
-      </nav>
-
-      {/* Main Content */}
-      <main className="content">
+    <main className="content">
+      <div className="page-card">
         <h1>Approvals (List)</h1>
 
         <p className="subtitle">
@@ -82,7 +77,7 @@ function App() {
 
             <tbody>
               {approvals.map((approval, index) => (
-                <tr key={index}>
+                <tr key={index} onClick={() => onNavigate && onNavigate("approval-detail", approval)}>
                   <td>{approval.quotation}</td>
                   <td>{approval.customer}</td>
                   <td>{approval.risk}</td>
@@ -110,9 +105,9 @@ function App() {
             <option value="all">All</option>
           </select>
         </div>
-      </main>
-    </div>
+      </div>
+    </main>
   );
 }
 
-export default App;
+export default Approvals;
