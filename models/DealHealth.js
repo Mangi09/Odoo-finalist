@@ -5,7 +5,13 @@ const dealHealthSchema = new mongoose.Schema(
     quotationId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Quotation',
-      required: true,
+      default: null,
+      index: true,
+    },
+    salesOrderId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'SalesOrder',
+      default: null,
       index: true,
     },
     score: {
@@ -20,6 +26,20 @@ const dealHealthSchema = new mongoose.Schema(
     riskFactors: {
       type: [String],
       default: [],
+    },
+    escalated: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    escalatedAt: {
+      type: Date,
+      default: null,
+    },
+    escalatedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
     },
   },
   {

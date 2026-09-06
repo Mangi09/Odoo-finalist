@@ -1,6 +1,10 @@
 const mongoose = require('mongoose');
 
 const negotiationItemSchema = new mongoose.Schema({
+  quotationItemId: {
+    type: mongoose.Schema.Types.ObjectId,
+    default: null,
+  },
   productId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Product',
@@ -34,6 +38,12 @@ const negotiationSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Customer',
       required: true,
+      index: true,
+    },
+    salesOrderId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'SalesOrder',
+      default: null,
       index: true,
     },
     type: {

@@ -21,9 +21,14 @@ const userSchema = new mongoose.Schema(
     },
     role: {
       type: String,
-      enum: ['salesperson', 'sales_manager', 'finance_ops', 'admin'],
+      enum: ['salesperson', 'sales_manager', 'finance_ops', 'admin', 'customer'],
       default: 'salesperson',
       required: true,
+    },
+    customerId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Customer',
+      index: true,
     },
     isActive: {
       type: Boolean,

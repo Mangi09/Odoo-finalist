@@ -2,9 +2,9 @@ const mongoose = require('mongoose');
 
 const invoiceSchema = new mongoose.Schema(
   {
-    quotationId: {
+    salesOrderId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'Quotation',
+      ref: 'SalesOrder',
       required: true,
       index: true,
     },

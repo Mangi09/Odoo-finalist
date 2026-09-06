@@ -22,6 +22,11 @@ const customerSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    salespersonId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      index: true,
+    },
     tierId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'CustomerTier',
@@ -35,7 +40,13 @@ const customerSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true }
   }
 );
+
+customerSchema.virtual('name').get(function() {
+  return this.companyName;
+});
 
 module.exports = mongoose.model('Customer', customerSchema);

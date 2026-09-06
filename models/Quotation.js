@@ -53,6 +53,10 @@ const quotationSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
+    title: {
+      type: String,
+      trim: true,
+    },
     status: {
       type: String,
       enum: [
@@ -62,10 +66,7 @@ const quotationSchema = new mongoose.Schema(
         'SENT_TO_CUSTOMER',
         'NEGOTIATION',
         'RE_APPROVAL',
-        'CONFIRMED',
-        'FULFILLMENT',
-        'BILLED',
-        'PAID',
+        'ACCEPTED',
         'REJECTED',
         'CANCELLED',
       ],
@@ -73,6 +74,22 @@ const quotationSchema = new mongoose.Schema(
       required: true,
     },
     items: [quotationItemSchema],
+    subtotalAmount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    globalDiscountPercent: {
+      type: Number,
+      default: 0,
+      min: 0,
+      max: 100,
+    },
+    globalDiscountAmount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
     totalAmount: {
       type: Number,
       default: 0,
@@ -85,6 +102,20 @@ const quotationSchema = new mongoose.Schema(
     riskScore: {
       type: Number,
       default: 0,
+    },
+    isArchived: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    archivedAt: {
+      type: Date,
+      default: null,
+    },
+    archivedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
     },
   },
   {
