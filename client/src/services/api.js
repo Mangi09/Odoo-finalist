@@ -100,6 +100,10 @@ export const api = {
     delete: async (id) => request(`/quotations/${id}`, { method: 'DELETE' }),
     submit: async (id) => request(`/quotations/${id}/submit`, { method: 'POST' }),
     accept: async (id) => request(`/quotations/${id}/accept`, { method: 'POST' }),
+    sendToCustomer: async (id) => request(`/quotations/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status: 'SENT_TO_CUSTOMER' }),
+    }),
   },
 
   // Approvals
@@ -214,10 +218,18 @@ export const api = {
   // Customer Portal
   portal: {
     getAdminRequests: async () => request('/portal/admin/requests'),
+    getQuotations: async () => request('/portal/quotations'),
     getQuotation: async (id) => request(`/portal/quotation/${id}`),
     accept: async (id) => request(`/portal/quotation/${id}/accept`, { method: 'POST' }),
     reject: async (id, reason) => request(`/portal/quotation/${id}/reject`, { method: 'POST', body: JSON.stringify({ reason }) }),
     negotiate: async (id, data) => request(`/portal/quotation/${id}/negotiate`, { method: 'POST', body: JSON.stringify(data) }),
+  },
+
+  // Discount Rules
+  discountRules: {
+    getAll: async () => request('/discount-rules'),
+    update: async (id, data) => request(`/discount-rules/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+    updateBulk: async (data) => request('/discount-rules/bulk', { method: 'PUT', body: JSON.stringify(data) }),
   },
 };
 

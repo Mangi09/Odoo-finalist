@@ -49,6 +49,53 @@ exports.getAdminRequests = async (req, res, next) => {
 };
 
 /**
+ * GET /api/v1/portal/quotations
+ * List all quotations for the logged-in customer (sent/active statuses)
+ */
+exports.getPortalQuotations = async (req, res, next) => {
+  try {
+    const customerId = req.user.customerId;
+    if (!customerId) return ApiResponse.badRequest(res, 'No customer profile linked to this account');
+
+    const quotations = await Quotation.find({
+      customerId,
+      status: { $in: ['SENT_TO_CUSTOMER', 'NEGOTIATION', 'RE_APPROVAL', 'ACCEPTED', 'APPROVED'] },
+      isArchived: { $ne: true },
+    })
+      .populate('items.productId')
+      .sort({ updatedAt: -1 });
+
+    const orders = await SalesOrder.find({ customerId }, 'quotationId orderNumber status').lean();
+    const orderByQuote = orders.reduce((acc, o) => {
+      acc[o.quotationId?.toString()] = o;
+      return acc;
+    }, {});
+
+    const formatted = quotations.map(q => {
+      const order = orderByQuote[q._id.toString()];
+      return {
+        _id: q._id,
+        id: `Q-${q._id.toString().slice(-4).toUpperCase()}`,
+        status: q.status,
+        totalAmount: q.totalAmount,
+        subtotalAmount: q.subtotalAmount || q.totalAmount,
+        globalDiscountPercent: q.globalDiscountPercent || 0,
+        updatedAt: q.updatedAt,
+        createdAt: q.createdAt,
+        itemCount: q.items.length,
+        orderNumber: order?.orderNumber || null,
+        orderId: order?._id || null,
+        orderStatus: order?.status || null,
+      };
+    });
+
+    return ApiResponse.success(res, formatted);
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
  * GET /api/v1/portal/quotation/:id
  * Customer safe quotation view
  */

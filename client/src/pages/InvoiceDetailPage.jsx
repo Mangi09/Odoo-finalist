@@ -35,6 +35,8 @@ export default function InvoiceDetailPage({ invoice, onNavigate, currentUser }) 
           method: "OTHER",
           reference: `REC-${Date.now().toString().slice(-6)}`
         });
+        const fresh = await api.invoices.getById(current._id);
+        if (fresh) setCurrent(prev => ({ ...prev, ...fresh }));
       }
       setPaid(true);
       setMessage({ type: "success", text: `Payment of ${amountDisplay} recorded successfully. Deal marked as Paid!` });

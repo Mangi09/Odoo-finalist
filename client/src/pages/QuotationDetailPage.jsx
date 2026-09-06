@@ -233,13 +233,54 @@ export default function QuotationDetailPage({ onNavigate, quote, currentUser }) 
 
     setIsSubmitting(true);
     try {
-      await api.quotations.submit(quotation._id);
-      setNotice(`Quotation ${quotation.quotationNumber || quotation._id} submitted for approval.`);
+      const result = await api.quotations.submit(quotation._id);
+      const needsApproval = result?.needsApproval;
+      if (needsApproval) {
+        setNotice(`Quotation ${quotation.quotationNumber || quotation._id} submitted for manager approval. (Discount exceeds policy limit.)`);
+      } else {
+        setNotice(`Quotation ${quotation.quotationNumber || quotation._id} auto-approved! Click "Send to Customer" to share it.`);
+      }
+      // Reload quotation so status updates and buttons refresh
+      const updated = await api.quotations.getById(quotation._id);
+      setQuotation(updated);
       setTimeout(() => {
-        if (onNavigate) onNavigate("quotations");
-      }, 1500);
+        if (needsApproval && onNavigate) onNavigate("approvals");
+      }, 2000);
     } catch (err) {
       setNotice(`Error submitting: ${err.message}`);
+      setIsSubmitting(false);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleSendToCustomer = async () => {
+    if (!quotation?._id) return;
+    setIsSubmitting(true);
+    try {
+      await api.quotations.sendToCustomer(quotation._id);
+      const updated = await api.quotations.getById(quotation._id);
+      setQuotation(updated);
+      setNotice(`Quotation sent to customer! They can now view, accept or negotiate it in their portal.`);
+    } catch (err) {
+      setNotice(`Error sending: ${err.message}`);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleAcceptQuotation = async () => {
+    if (!quotation?._id || !window.confirm('Accept this quotation and create a Sales Order?')) return;
+    setIsSubmitting(true);
+    try {
+      const result = await api.quotations.accept(quotation._id);
+      const so = result?.salesOrder;
+      setNotice(`Quotation accepted! Sales Order ${so?.orderNumber || ''} created. Redirecting...`);
+      setTimeout(() => {
+        if (onNavigate) onNavigate('orders', so || null);
+      }, 1200);
+    } catch (err) {
+      setNotice(`Error accepting: ${err.message}`);
       setIsSubmitting(false);
     }
   };
@@ -505,10 +546,43 @@ export default function QuotationDetailPage({ onNavigate, quote, currentUser }) 
             </button>
           )}
 
-          {(!quotation || ['DRAFT', 'REJECTED'].includes(quotation.status)) && (
+          {(!quotation || ['DRAFT', 'REJECTED'].includes(quotation?.status)) && (
             <button className="btn-primary" onClick={handleSubmitApproval} disabled={isSubmitting || lines.length === 0} style={{ display: "flex", alignItems: "center", gap: "6px" }}>
               <Send size={15} />
-              <span>{isSubmitting && quotation ? 'Submitting...' : 'Submit for Approval'}</span>
+              <span>{isSubmitting ? 'Submitting...' : 'Submit for Approval'}</span>
+            </button>
+          )}
+
+          {/* APPROVED → Send to Customer */}
+          {quotation && quotation.status === 'APPROVED' && (
+            <button
+              className="btn-primary"
+              onClick={handleSendToCustomer}
+              disabled={isSubmitting}
+              style={{ display: "flex", alignItems: "center", gap: "6px", background: '#0ea5e9', borderColor: '#0284c7' }}
+            >
+              <Send size={15} />
+              <span>{isSubmitting ? 'Sending...' : 'Send to Customer'}</span>
+            </button>
+          )}
+
+          {/* SENT_TO_CUSTOMER / NEGOTIATION / RE_APPROVAL → inform */}
+          {quotation && ['SENT_TO_CUSTOMER', 'NEGOTIATION'].includes(quotation.status) && (
+            <span style={{ fontSize: '13px', color: '#6b7280', alignSelf: 'center' }}>
+              ✅ Sent — awaiting customer response
+            </span>
+          )}
+
+          {/* ACCEPTED → Accept Quotation to create Sales Order */}
+          {quotation && quotation.status === 'ACCEPTED' && (
+            <button
+              className="btn-primary"
+              onClick={handleAcceptQuotation}
+              disabled={isSubmitting}
+              style={{ display: "flex", alignItems: "center", gap: "6px", background: '#16a34a', borderColor: '#15803d' }}
+            >
+              <CheckCircle2 size={15} />
+              <span>{isSubmitting ? 'Creating Order...' : 'Convert to Sales Order'}</span>
             </button>
           )}
 

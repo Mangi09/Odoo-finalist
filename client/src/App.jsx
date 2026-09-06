@@ -142,11 +142,11 @@ function App() {
       case 'fulfillment':
       case 'fulfillment-list':
       case 'fulfillment-detail':
-        return ['sales_manager', 'finance_ops'].includes(role);
+        return ['salesperson', 'sales_manager', 'finance_ops'].includes(role);
       case 'reports':
         return ['sales_manager'].includes(role);
       case 'discount-rules':
-        return false; // admin only
+        return ['admin', 'sales_manager'].includes(role);
       case 'customer-portal':
         return ['salesperson', 'sales_manager', 'customer', 'admin'].includes(role);
       default:

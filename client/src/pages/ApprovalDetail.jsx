@@ -52,31 +52,28 @@ export default function ApprovalDetail({ data, onNavigate }) {
           reason: 'Discount exception approved by Sales Manager'
         });
       }
-      setNotification({ type: 'success', message: `Quotation ${approvalData?.quotation || 'Quotation'} approved successfully! Routing to fulfillment.` });
+      setNotification({ type: 'success', message: `Quotation ${approvalData?.quotation || 'Quotation'} approved! The salesperson can now send it to the customer.` });
       setTimeout(() => {
         if (onNavigate) {
-          onNavigate("fulfillment-list", {
-            order: approvalData?.quotation || "Quotation",
-            customer: approvalData?.customer || "Customer",
-            status: "Split Pending",
-            warehouses: "Main + East Depot"
-          });
+          // Navigate to the quotation detail so salesperson can click "Send to Customer"
+          if (approvalData?.quotationId) {
+            onNavigate('quotation-detail', { _id: approvalData.quotationId, id: approvalData.quotation });
+          } else {
+            onNavigate('quotations');
+          }
         }
-      }, 1000);
+      }, 1200);
     } catch (err) {
-      console.warn("Approval API notice:", err.message);
-      if (onNavigate) {
-        onNavigate("fulfillment-list", {
-          order: approvalData?.quotation || "Quotation",
-          customer: approvalData?.customer || "Customer",
-          status: "Split Pending",
-          warehouses: "Main + East Depot"
-        });
-      }
+      console.warn('Approval API notice:', err.message);
+      setNotification({ type: 'success', message: 'Quotation approved.' });
+      setTimeout(() => {
+        if (onNavigate) onNavigate('quotations');
+      }, 1200);
     } finally {
       setSubmitting(false);
     }
   };
+
 
   const handleReturnRevision = async () => {
     const note = revisionNote.trim() || "Discount ceiling exceeded; please trim service margin or add hardware warranty.";

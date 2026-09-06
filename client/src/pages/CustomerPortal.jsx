@@ -6,13 +6,14 @@ function CustomerPortal({ onNavigate, quote, currentUser }) {
   const [quoteStatus, setQuoteStatus] = useState("");
   const [quotation, setQuotation] = useState(null);
   const [orders, setOrders] = useState([]);
+  const [portalQuotations, setPortalQuotations] = useState([]);
+  const [selectedQuoteId, setSelectedQuoteId] = useState("");
   const [adminRequests, setAdminRequests] = useState([]);
   const [selectedOrderId, setSelectedOrderId] = useState("");
   const [counterDiscount, setCounterDiscount] = useState("");
   const [requestedDate, setRequestedDate] = useState("");
   const [lineComment, setLineComment] = useState("");
   const [notification, setNotification] = useState("");
-
   const [comments, setComments] = useState([]);
 
   const ALLOWED_DISCOUNT_THRESHOLD = 12; // 12% max auto-approve threshold
@@ -29,23 +30,56 @@ function CustomerPortal({ onNavigate, quote, currentUser }) {
       return;
     }
 
-    const loadOwnOrders = async () => {
+    const loadCustomerPortal = async () => {
       try {
-        const ownOrders = await api.salesOrders.getAll();
-        setOrders(ownOrders);
-        const selected = ownOrders.find(order => order._id === quote?._id || order.id === quote?.id) || ownOrders[0];
-        if (!selected) return;
-        setSelectedOrderId(selected._id);
-        const detail = await api.quotations.getById(selected.quotationId);
-        setQuotation(detail);
-        setQuoteStatus(detail.stage || selected.status);
-        setComments((detail.items || []).map(item => ({ id: item._id, line: item.product, comment: "No comments yet" })));
+        // 1. Fetch portal quotations (sent/active)
+        const pQuotes = await api.portal.getQuotations();
+        const quoteList = Array.isArray(pQuotes) ? pQuotes : [];
+        setPortalQuotations(quoteList);
+
+        // 2. Also load any existing orders (for order-linked negotiations)
+        const ownOrders = await api.salesOrders.getAll().catch(() => []);
+        setOrders(Array.isArray(ownOrders) ? ownOrders : []);
+
+        // 3. Auto-select: prefer quote from navigation prop, else first in list
+        const preferredQuote = quote?._id
+          ? quoteList.find(q => q._id === quote._id || q.id === quote.id)
+          : null;
+        const firstQuote = preferredQuote || quoteList[0];
+
+        if (firstQuote) {
+          setSelectedQuoteId(firstQuote._id);
+          // Fetch full quotation detail
+          const detail = await api.portal.getQuotation(firstQuote._id);
+          setQuotation(detail);
+          setQuoteStatus(detail.status || firstQuote.status);
+          setComments((detail.items || []).map(item => ({ id: item.id, line: item.name, comment: "No comments yet" })));
+          // Link to order if exists
+          if (firstQuote.orderId) setSelectedOrderId(firstQuote.orderId);
+        }
       } catch (err) {
-        setNotification(`Unable to load your quotation: ${err.message}`);
+        setNotification(`Unable to load your quotations: ${err.message}`);
       }
     };
-    loadOwnOrders();
+    loadCustomerPortal();
   }, [quote, currentUser?.role, isStaff]);
+
+  const handleQuoteSelect = async (qId) => {
+    setSelectedQuoteId(qId);
+    try {
+      const detail = await api.portal.getQuotation(qId);
+      setQuotation(detail);
+      setQuoteStatus(detail.status);
+      setComments((detail.items || []).map(item => ({ id: item.id, line: item.name, comment: "No comments yet" })));
+      const pq = portalQuotations.find(q => q._id === qId);
+      if (pq?.orderId) setSelectedOrderId(pq.orderId);
+      else setSelectedOrderId("");
+      setNotification("");
+    } catch (err) {
+      setNotification(`Unable to load quotation: ${err.message}`);
+    }
+  };
+
 
   const handleOrderChange = async (event) => {
     const order = orders.find(item => item._id === event.target.value);
@@ -80,39 +114,24 @@ function CustomerPortal({ onNavigate, quote, currentUser }) {
       setComments(newComments);
     }
 
-    if (!quotation || !selectedOrderId) return;
+    if (!quotation) return;
     try {
       const result = await api.portal.negotiate(quotation._id, {
-        orderId: selectedOrderId,
+        orderId: selectedOrderId || null,
         counterDiscount: discountVal || 0,
         requestedDate,
         lineComment
       });
-      const nextStatus = result?.quotation?.status || (!isNaN(discountVal) && discountVal > ALLOWED_DISCOUNT_THRESHOLD ? "RE_APPROVAL" : "NEGOTIATION");
+      const nextStatus = result?.quoteStatus || (!isNaN(discountVal) && discountVal > ALLOWED_DISCOUNT_THRESHOLD ? "RE_APPROVAL" : "NEGOTIATION");
       setQuoteStatus(nextStatus);
       setNotification(result?.notification || "Negotiation request submitted.");
+      // Refresh portal quotation list so status badge updates
+      api.portal.getQuotations().then(d => setPortalQuotations(Array.isArray(d) ? d : [])).catch(() => {});
     } catch (err) {
       setNotification(`Unable to submit request: ${err.message}`);
-      return;
-    }
-
-    if (!isNaN(discountVal) && discountVal > ALLOWED_DISCOUNT_THRESHOLD) {
-      // Exceeds threshold -> Triggers re-approval workflow (Screen 6)
-      setQuoteStatus("Pending Re-Approval");
-      setNotification(
-        `Negotiation request submitted (${discountVal}% discount requested). ` +
-        `Requested discount exceeds allowed threshold (${ALLOWED_DISCOUNT_THRESHOLD}%). ` +
-        `Quotation has re-entered internal approval workflow (Screen 6).`
-      );
-    } else {
-      // Within threshold -> Auto-approved for customer confirmation
-      setQuoteStatus("Approved - Ready for Confirmation");
-      setNotification(
-        `Negotiation request accepted. Terms updated to ${discountVal || 10}% discount. ` +
-        `Your request has been recorded for review.`
-      );
     }
   };
+
 
   return (
     <main className="content">

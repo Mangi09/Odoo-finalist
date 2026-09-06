@@ -1,5 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import "../App.css";
+import { api } from "../services/api";
 
 const defaultTierRules = [
   { id: "T-01", tier: "Bronze", maxDiscount: 5 },
@@ -25,6 +26,37 @@ function DiscountRules({ onNavigate }) {
   const [categoryRules, setCategoryRules] = useState(defaultCategoryRules);
   const [notification, setNotification] = useState("");
   const [errors, setErrors] = useState({});
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    loadRules();
+  }, []);
+
+  const loadRules = async () => {
+    setLoading(true);
+    try {
+      const data = await api.discountRules.getAll();
+      if (data?.tiers && data.tiers.length > 0) {
+        setTierRules(data.tiers.map(t => ({
+          id: t._id,
+          tier: t.name,
+          maxDiscount: t.maxDiscountPercent
+        })));
+      }
+      if (data?.categories && data.categories.length > 0) {
+        setCategoryRules(data.categories.map(c => ({
+          id: c._id,
+          category: c.name,
+          maxDiscount: c.maxDiscount
+        })));
+      }
+    } catch (err) {
+      console.warn("Failed to load discount rules from DB, using defaults:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleTierChange = (id, val) => {
     setTierRules((prev) =>
@@ -38,7 +70,7 @@ function DiscountRules({ onNavigate }) {
     );
   };
 
-  const handleSave = (e) => {
+  const handleSave = async (e) => {
     e.preventDefault();
     const newErrors = {};
 
@@ -62,7 +94,18 @@ function DiscountRules({ onNavigate }) {
     }
 
     setErrors({});
-    setNotification("Discount rules and approval chains configuration saved successfully!");
+    setSaving(true);
+    try {
+      await api.discountRules.updateBulk({
+        tiers: tierRules.map(t => ({ id: t.id, maxDiscount: Number(t.maxDiscount) })),
+        categories: categoryRules.map(c => ({ id: c.id, maxDiscount: Number(c.maxDiscount) })),
+      });
+      setNotification("Discount rules and approval chains configuration saved successfully to database!");
+    } catch (err) {
+      setNotification(`Error saving rules: ${err.message}`);
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -270,6 +313,7 @@ function DiscountRules({ onNavigate }) {
           <div style={{ marginBottom: "20px" }}>
             <button
               type="submit"
+              disabled={saving || loading}
               style={{
                 height: "40px",
                 padding: "0 24px",
@@ -278,11 +322,12 @@ function DiscountRules({ onNavigate }) {
                 background: "#1976bd",
                 color: "#ffffff",
                 fontSize: "12px",
-                cursor: "pointer",
+                cursor: (saving || loading) ? "not-allowed" : "pointer",
                 fontWeight: "500",
+                opacity: (saving || loading) ? 0.7 : 1,
               }}
             >
-              Save configuration
+              {saving ? "Saving to Database..." : "Save configuration"}
             </button>
           </div>
         </form>

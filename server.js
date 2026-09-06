@@ -25,6 +25,7 @@ const reportsRoutes = require('./routes/reports');
 const salesOrderRoutes = require('./routes/salesOrders');
 const paymentRoutes = require('./routes/payments');
 const warehouseRoutes = require('./routes/warehouses');
+const discountRulesRoutes = require('./routes/discountRules');
 
 const app = express();
 
@@ -65,6 +66,7 @@ app.use('/api/v1/deal-health', dealHealthRoutes);
 app.use('/api/v1/reports', reportsRoutes);
 app.use('/api/v1/payments', paymentRoutes);
 app.use('/api/v1/warehouses', warehouseRoutes);
+app.use('/api/v1/discount-rules', discountRulesRoutes);
 
 // Fallback 404
 app.use((req, res) => {
