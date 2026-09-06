@@ -19,13 +19,24 @@ import {
 
 export default function Sidebar({ currentTab, onNavigate, currentUser }) {
   const role = currentUser?.role || 'salesperson';
-  const [salespersonName, setSalespersonName] = useState('');
+  const [salespersonName, setSalespersonName] = useState(currentUser?.salespersonName || '');
+  const [companyName, setCompanyName] = useState(
+    currentUser?.companyName ||
+    currentUser?.customerId?.companyName ||
+    currentUser?.customerId?.name ||
+    ''
+  );
 
   useEffect(() => {
     if (role !== 'customer') return;
     api.auth.me()
-      .then(user => setSalespersonName(user.customerId?.salespersonId?.name || 'Unassigned'))
-      .catch(() => setSalespersonName('Unassigned'));
+      .then(user => {
+        setSalespersonName(user.customerId?.salespersonId?.name || 'Unassigned');
+        setCompanyName(user.customerId?.companyName || user.customerId?.name || '');
+      })
+      .catch(() => {
+        if (!salespersonName) setSalespersonName('Unassigned');
+      });
   }, [role]);
 
   const allNavItems = [
@@ -62,7 +73,7 @@ export default function Sidebar({ currentTab, onNavigate, currentUser }) {
       case 'reports':
         return role === 'sales_manager';
       case 'customer-portal':
-        return ['customer'].includes(role);
+        return ['salesperson', 'sales_manager', 'customer'].includes(role);
       default:
         return false;
     }
@@ -109,7 +120,11 @@ export default function Sidebar({ currentTab, onNavigate, currentUser }) {
         </div>
         <div className="profile-details">
           <span className="greeting-title">Welcome, {currentUser?.name ? currentUser.name.split(' ')[0] : 'User'}!</span>
-          <span className="greeting-subtitle">{role === 'customer' ? `CUSTOMER · REP: ${salespersonName || 'Loading...'}` : role.replace('_', ' ').toUpperCase()}</span>
+          <span className="greeting-subtitle">
+            {role === 'customer'
+              ? `${companyName ? companyName.toUpperCase() + ' · ' : ''}REP: ${salespersonName || 'Loading...'}`
+              : role.replace('_', ' ').toUpperCase()}
+          </span>
         </div>
       </div>
 

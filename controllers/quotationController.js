@@ -14,7 +14,7 @@ const ApiResponse = require('../utils/apiResponse');
 const { calculateQuotationTotals, normalizeDiscountPercent } = require('../utils/quotationTotals');
 
 function formatQuotationListItem(q) {
-  const customerName = q.customerId?.name || 'Unknown Customer';
+  const customerName = q.customerId?.companyName || q.customerId?.name || 'Unknown Customer';
   const valDisplay = `₹${((q.totalAmount || 0) / 100000).toFixed(2)}L`;
   
   // Format stage to match frontend title-cased or standard status

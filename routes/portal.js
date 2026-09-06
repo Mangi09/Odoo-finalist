@@ -4,7 +4,7 @@ const customerPortalController = require('../controllers/customerPortalControlle
 const { requireAuth } = require('../middleware/auth');
 const { requireRole } = require('../middleware/rbac');
 
-router.get('/admin/requests', requireAuth, requireRole('admin'), customerPortalController.getAdminRequests);
+router.get('/admin/requests', requireAuth, requireRole('admin', 'sales_manager', 'salesperson'), customerPortalController.getAdminRequests);
 
 router.use(requireAuth, requireRole('customer'));
 router.get('/quotation/:id', customerPortalController.getPortalQuotation);

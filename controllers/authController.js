@@ -31,6 +31,8 @@ async function login(req, res, next) {
       { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
     );
 
+    await user.populate({ path: 'customerId', populate: { path: 'salespersonId', select: 'name' } });
+
     ApiResponse.success(res, {
       token,
       user: {
@@ -39,6 +41,8 @@ async function login(req, res, next) {
         email: user.email,
         role: user.role,
         customerId: user.customerId,
+        companyName: user.customerId?.companyName || user.customerId?.name || null,
+        salespersonName: user.customerId?.salespersonId?.name || null,
       },
     });
   } catch (err) {

@@ -163,7 +163,7 @@ export default function AuthPage({ onNavigate }) {
               </button>
               <button
                 type="button"
-                onClick={() => handleDemoLogin('customer@dealflow360.com', 'password123')}
+                onClick={() => handleDemoLogin('customer1@dealflow360.com', 'password123')}
                 style={{
                   background: '#edf2f7',
                   border: '1px solid #cbd5e0',
@@ -174,7 +174,7 @@ export default function AuthPage({ onNavigate }) {
                   color: '#2d3748'
                 }}
               >
-                ⚡ Customer
+                ⚡ Customer (Rohan)
               </button>
             </div>
           </div>

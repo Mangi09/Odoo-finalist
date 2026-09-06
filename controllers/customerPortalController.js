@@ -10,9 +10,16 @@ const ALLOWED_DISCOUNT_THRESHOLD = 12; // 12% max auto-approve threshold
 
 exports.getAdminRequests = async (req, res, next) => {
   try {
-    const negotiations = await Negotiation.find()
+    const filter = {};
+    if (req.user && ['salesperson', 'sales_manager'].includes(req.user.role)) {
+      const assignedCustomers = await Customer.find({ salespersonId: req.user.id }, '_id');
+      filter.customerId = { $in: assignedCustomers.map(c => c._id) };
+    }
+
+    const negotiations = await Negotiation.find(filter)
       .populate('customerId')
       .populate('quotationId')
+      .populate('salesOrderId')
       .sort({ createdAt: -1 });
 
     const quoteIds = negotiations.map(item => item.quotationId?._id || item.quotationId).filter(Boolean);
@@ -24,10 +31,10 @@ exports.getAdminRequests = async (req, res, next) => {
 
     return ApiResponse.success(res, negotiations.map(item => {
       const quoteId = item.quotationId?._id || item.quotationId;
-      const order = quoteId ? orderByQuote[quoteId.toString()] : null;
+      const order = item.salesOrderId || (quoteId ? orderByQuote[quoteId.toString()] : null);
       return {
         _id: item._id,
-        customerName: item.customerId?.name || item.customerId?.companyName || 'Customer',
+        customerName: item.customerId?.companyName || item.customerId?.name || 'Customer',
         orderNumber: order?.orderNumber || '-',
         orderId: order?._id || null,
         quotationId: quoteId || null,
@@ -68,7 +75,7 @@ exports.getPortalQuotation = async (req, res, next) => {
     const safeData = {
       id: `Q-${quotation._id.toString().slice(-4).toUpperCase()}`,
       _id: quotation._id,
-      customerName: cust.name,
+      customerName: cust.companyName || cust.name || 'Customer',
       status: quotation.status,
       subtotalAmount: quotation.subtotalAmount || quotation.items.reduce((sum, it) => sum + (it.lineTotal || 0), 0),
       globalDiscountPercent: quotation.globalDiscountPercent || 0,
@@ -179,6 +186,7 @@ exports.submitNegotiation = async (req, res, next) => {
     const negotiation = await Negotiation.create({
       quotationId: quotation._id,
       customerId: quotation.customerId,
+      salesOrderId: salesOrder?._id || null,
       type: 'COUNTER_OFFER',
       items: quotation.items.map(it => ({
         quotationItemId: it._id,
@@ -192,10 +200,13 @@ exports.submitNegotiation = async (req, res, next) => {
 
     const actorId = req.user?._id || quotation.customerId;
 
-    let quoteStatus;
+    let quoteStatus = quotation.status;
     let notification;
 
-    if (!isNaN(discountVal) && discountVal > ALLOWED_DISCOUNT_THRESHOLD) {
+    if (quotation.status === 'ACCEPTED' || salesOrder) {
+      quoteStatus = salesOrder ? salesOrder.status : 'ACCEPTED';
+      notification = `Request submitted for order ${salesOrder?.orderNumber || quotation._id}. Your sales rep has been notified.`;
+    } else if (!isNaN(discountVal) && discountVal > ALLOWED_DISCOUNT_THRESHOLD) {
       // Exceeds threshold -> Re-approval required
       await transitionStatus(quotation, 'NEGOTIATION', actorId, `Customer requested ${discountVal}% discount (exceeds ${ALLOWED_DISCOUNT_THRESHOLD}%)`);
       await transitionStatus(quotation, 'RE_APPROVAL', actorId, 'Re-approval initiated due to high discount request');

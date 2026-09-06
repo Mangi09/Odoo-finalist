@@ -148,7 +148,7 @@ function App() {
       case 'discount-rules':
         return false; // admin only
       case 'customer-portal':
-        return ['customer'].includes(role);
+        return ['salesperson', 'sales_manager', 'customer', 'admin'].includes(role);
       default:
         return false;
     }

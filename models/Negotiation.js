@@ -40,6 +40,12 @@ const negotiationSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
+    salesOrderId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'SalesOrder',
+      default: null,
+      index: true,
+    },
     type: {
       type: String,
       enum: ['COUNTER_OFFER', 'CHANGE_REQUEST'],

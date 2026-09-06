@@ -18,8 +18,11 @@ function CustomerPortal({ onNavigate, quote, currentUser }) {
   const ALLOWED_DISCOUNT_THRESHOLD = 12; // 12% max auto-approve threshold
   const formatAmount = (amount) => `₹${Number(amount || 0).toLocaleString('en-IN')}`;
 
+  const isStaff = ['admin', 'sales_manager', 'salesperson'].includes(currentUser?.role);
+  const representedCompany = currentUser?.companyName || quotation?.customer?.name || quotation?.customerName || "";
+
   useEffect(() => {
-    if (currentUser?.role === 'admin') {
+    if (isStaff) {
       api.portal.getAdminRequests()
         .then(data => setAdminRequests(Array.isArray(data) ? data : []))
         .catch(err => setNotification(`Unable to load customer requests: ${err.message}`));
@@ -42,7 +45,7 @@ function CustomerPortal({ onNavigate, quote, currentUser }) {
       }
     };
     loadOwnOrders();
-  }, [quote, currentUser?.role]);
+  }, [quote, currentUser?.role, isStaff]);
 
   const handleOrderChange = async (event) => {
     const order = orders.find(item => item._id === event.target.value);
@@ -113,10 +116,10 @@ function CustomerPortal({ onNavigate, quote, currentUser }) {
 
   return (
     <main className="content">
-      {currentUser?.role === 'admin' ? (
+      {isStaff ? (
         <>
           <h1>Customer Portal Requests</h1>
-          <p className="subtitle">Customer negotiation/change requests mapped to their related orders.</p>
+          <p className="subtitle">Customer negotiation and change requests mapped to their assigned orders.</p>
 
           {notification && (
             <div className="info-box" style={{ marginTop: "14px", marginBottom: "14px" }}>
@@ -164,7 +167,7 @@ function CustomerPortal({ onNavigate, quote, currentUser }) {
         <h1>Customer Portal Negotiation Screen</h1>
 
         <p className="subtitle">
-          Customer reviews and negotiates the quote directly, no email needed
+          {representedCompany ? `${representedCompany} — ` : ''}Customer reviews and negotiates the quote directly, no email needed
         </p>
 
         {/* Quotation Status Card */}

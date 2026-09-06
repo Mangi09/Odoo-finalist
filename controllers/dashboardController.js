@@ -45,7 +45,7 @@ exports.getSummary = async (req, res, next) => {
       ]
     });
 
-    const pipelineValueDisplay = `₹${(pipelineValue / 100000).toFixed(2)}L`;
+    const pipelineValueDisplay = `\u20B9${(pipelineValue / 100000).toFixed(2)}L`;
 
     return ApiResponse.success(res, {
       openDeals: openDealsCount,
@@ -76,7 +76,7 @@ exports.getRecentDeals = async (req, res, next) => {
 
     const formatted = quotations.map(q => {
       const customerName = q.customerId?.name || 'Customer';
-      const valDisplay = `₹${((q.totalAmount || 0) / 100000).toFixed(2)}L`;
+      const valDisplay = `\u20B9${((q.totalAmount || 0) / 100000).toFixed(2)}L`;
       return {
         id: `Q-${q._id.toString().slice(-4).toUpperCase()}`,
         _id: q._id,
