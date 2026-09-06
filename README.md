@@ -64,7 +64,7 @@ DRAFT → PENDING_APPROVAL → APPROVED → SENT_TO_CUSTOMER → NEGOTIATION →
 
 ---
 
-## 5. Product Catalog (Pravaah)
+## 5. Product Catalog
 
 | Category | Products | Billing |
 |---|---|---|
