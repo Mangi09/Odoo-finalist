@@ -76,6 +76,22 @@ const salesOrderSchema = new mongoose.Schema(
       index: true,
     },
     items: [salesOrderItemSchema],
+    subtotalAmount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    globalDiscountPercent: {
+      type: Number,
+      default: 0,
+      min: 0,
+      max: 100,
+    },
+    globalDiscountAmount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
     totalAmount: {
       type: Number,
       required: true,

@@ -11,7 +11,8 @@ export default function AppLayout({
   selectedInvoice,
   selectedProduct,
   selectedApproval,
-  selectedFulfillment
+  selectedFulfillment,
+  currentUser
 }) {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [rightPanelOpen, setRightPanelOpen] = useState(false);
@@ -62,6 +63,7 @@ export default function AppLayout({
         <Sidebar
           currentTab={currentTab}
           onNavigate={handleNavigateWrapper}
+          currentUser={currentUser}
         />
       </div>
 

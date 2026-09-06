@@ -4,22 +4,30 @@ const Fulfillment = require('../models/Fulfillment');
 const Backorder = require('../models/Backorder');
 const Invoice = require('../models/Invoice');
 const Subscription = require('../models/Subscription');
+const Customer = require('../models/Customer');
 const { transitionSalesOrderStatus } = require('../utils/stateMachine');
 const ApiResponse = require('../utils/apiResponse');
 
-function formatSalesOrderListItem(so) {
+function formatSalesOrderListItem(so, invoiceByOrder = {}) {
   const customerName = so.customerId?.name || 'Customer';
   const valDisplay = `₹${((so.totalAmount || 0) / 100000).toFixed(2)}L`;
+  const invoice = invoiceByOrder[so._id.toString()];
 
   return {
     _id: so._id,
     id: so.orderNumber,
     orderNumber: so.orderNumber,
-    quotationId: so.quotationId,
+    quotationId: so.quotationId?._id || so.quotationId,
+    quotationNumber: so.quotationId?.quotationNumber,
+    invoiceId: invoice?._id || null,
+    invoiceNumber: invoice ? `INV-${invoice._id.toString().slice(-4).toUpperCase()}` : '',
     customer: customerName,
     salesperson: so.salespersonId?.name || 'Sales Rep',
     value: valDisplay,
     totalAmount: so.totalAmount,
+    subtotalAmount: so.subtotalAmount || so.totalAmount,
+    globalDiscountPercent: so.globalDiscountPercent || 0,
+    globalDiscountAmount: so.globalDiscountAmount || 0,
     totalMargin: so.totalMargin,
     status: so.status,
     rawStatus: so.status,
@@ -41,13 +49,28 @@ exports.getSalesOrders = async (req, res, next) => {
     }
     if (customerId) filter.customerId = customerId;
 
+    if (req.user && ['salesperson', 'sales_manager'].includes(req.user.role)) {
+      const assignedCustomers = await Customer.find({ salespersonId: req.user.id }, '_id');
+      filter.customerId = { $in: assignedCustomers.map(customer => customer._id) };
+    } else if (req.user && req.user.role === 'customer') {
+      filter.customerId = req.user.customerId;
+    }
+
     const salesOrders = await SalesOrder.find(filter)
       .populate('customerId')
       .populate('salespersonId')
+      .populate('quotationId')
       .populate('items.productId')
       .sort({ createdAt: -1 });
 
-    let result = salesOrders.map(formatSalesOrderListItem);
+    const invoices = await Invoice.find({ salesOrderId: { $in: salesOrders.map(order => order._id) } }).sort({ issueDate: -1 });
+    const invoiceByOrder = invoices.reduce((acc, invoice) => {
+      const key = invoice.salesOrderId.toString();
+      if (!acc[key]) acc[key] = invoice;
+      return acc;
+    }, {});
+
+    let result = salesOrders.map(order => formatSalesOrderListItem(order, invoiceByOrder));
 
     if (search) {
       const s = search.toLowerCase();
@@ -91,6 +114,14 @@ exports.getSalesOrderById = async (req, res, next) => {
       return ApiResponse.notFound(res, 'Sales Order not found');
     }
 
+    if (['salesperson', 'sales_manager'].includes(req.user?.role) && salesOrder.customerId?.salespersonId?.toString() !== req.user.id) {
+      const customer = await Customer.findOne({ _id: salesOrder.customerId?._id || salesOrder.customerId, salespersonId: req.user.id });
+      if (!customer) return ApiResponse.forbidden(res, 'Access denied. This customer is not assigned to you.');
+    }
+    if (req.user && req.user.role === 'customer' && salesOrder.customerId?._id?.toString() !== req.user.customerId && salesOrder.customerId?.toString() !== req.user.customerId) {
+      return ApiResponse.forbidden(res, 'Access denied. You can only view your own sales orders.');
+    }
+
     // Fetch history, fulfillments, backorders, invoices, subscriptions
     const history = await SalesOrderHistory.find({ salesOrderId: salesOrder._id })
       .populate('actorId')
@@ -115,6 +146,9 @@ exports.getSalesOrderById = async (req, res, next) => {
       quotationId: salesOrder.quotationId?._id || salesOrder.quotationId,
       status: salesOrder.status,
       totalAmount: salesOrder.totalAmount,
+      subtotalAmount: salesOrder.subtotalAmount || salesOrder.totalAmount,
+      globalDiscountPercent: salesOrder.globalDiscountPercent || 0,
+      globalDiscountAmount: salesOrder.globalDiscountAmount || 0,
       totalMargin: salesOrder.totalMargin,
       confirmedAt: salesOrder.confirmedAt,
       customer: {
@@ -174,6 +208,11 @@ exports.updateSalesOrderStatus = async (req, res, next) => {
 
     const salesOrder = await SalesOrder.findById(req.params.id);
     if (!salesOrder) return ApiResponse.notFound(res, 'Sales Order not found');
+    if (['customer', 'salesperson'].includes(req.user?.role)) return ApiResponse.forbidden(res, 'This role has read-only sales order access');
+    if (req.user?.role === 'sales_manager') {
+      const assignedCustomer = await Customer.exists({ _id: salesOrder.customerId, salespersonId: req.user.id });
+      if (!assignedCustomer) return ApiResponse.forbidden(res, 'Access denied. This customer is not assigned to you.');
+    }
 
     const actorId = req.user?._id || salesOrder.salespersonId;
     await transitionSalesOrderStatus(salesOrder, status.toUpperCase(), actorId, `SalesOrder status updated to ${status}`);

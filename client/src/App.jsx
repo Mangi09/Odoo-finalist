@@ -23,79 +23,42 @@ import QuotationDetailPage from "./pages/QuotationDetailPage";
 import AppLayout from "./components/AppLayout";
 import './App.css';
 
-const initialSubscriptions = [
-  { id: "SUB-101", customer: "Acme Corp", plan: "Care Plan 2yr", cycle: "Monthly", nextBill: "Sep 15", status: "Active", amount: 499 },
-  { id: "SUB-102", customer: "Beta Industries", plan: "Support SLA", cycle: "Quarterly", nextBill: "Nov 1", status: "Active", amount: 1200 },
-  { id: "SUB-103", customer: "Delta LLC", plan: "Care Plan 1yr", cycle: "Monthly", nextBill: "-", status: "Paused", amount: 299 },
-  { id: "SUB-104", customer: "Nova Retail", plan: "NovaCloud Pro", cycle: "Yearly", nextBill: "Oct 20", status: "Active", amount: 3500 },
-  { id: "SUB-105", customer: "Apex Systems", plan: "Enterprise Care", cycle: "Monthly", nextBill: "Sep 30", status: "Active", amount: 899 },
-  { id: "SUB-106", customer: "Zenith Global", plan: "Basic SLA", cycle: "Monthly", nextBill: "-", status: "Cancelled", amount: 150 },
-  { id: "SUB-107", customer: "CyberDyne Inc", plan: "Custom Support", cycle: "Yearly", nextBill: "Nov 15", status: "Active", amount: 4800 },
-  { id: "SUB-108", customer: "Omni Consumer Products", plan: "Cloud Infrastructure", cycle: "Monthly", nextBill: "Oct 01", status: "Active", amount: 1500 },
-  { id: "SUB-109", customer: "Stark Logistics", plan: "Premium Support SLA", cycle: "Quarterly", nextBill: "Dec 01", status: "Active", amount: 2200 },
-  { id: "SUB-110", customer: "Wayne Tech", plan: "Care Plan 2yr", cycle: "Yearly", nextBill: "Aug 15", status: "Active", amount: 5000 },
-  { id: "SUB-111", customer: "Hooli Cloud", plan: "Support SLA", cycle: "Monthly", nextBill: "Oct 12", status: "Active", amount: 650 },
-  { id: "SUB-112", customer: "Pied Piper", plan: "Enterprise Care", cycle: "Monthly", nextBill: "Sep 28", status: "Active", amount: 950 },
-  { id: "SUB-113", customer: "Initech Solutions", plan: "Care Plan 1yr", cycle: "Monthly", nextBill: "-", status: "Paused", amount: 350 },
-  { id: "SUB-114", customer: "Massive Dynamic", plan: "NovaCloud Pro", cycle: "Yearly", nextBill: "Jan 10", status: "Active", amount: 4200 },
-  { id: "SUB-115", customer: "Umbrella Corp", plan: "Support SLA", cycle: "Monthly", nextBill: "Sep 19", status: "Active", amount: 750 },
-  { id: "SUB-116", customer: "Globex Corp", plan: "Care Plan 2yr", cycle: "Quarterly", nextBill: "Nov 05", status: "Active", amount: 1800 },
-  { id: "SUB-117", customer: "Soylent Corp", plan: "Basic SLA", cycle: "Monthly", nextBill: "-", status: "Cancelled", amount: 120 },
-  { id: "SUB-118", customer: "InGen Labs", plan: "Support SLA", cycle: "Monthly", nextBill: "Oct 08", status: "Active", amount: 800 },
-  { id: "SUB-119", customer: "Tyrell Corp", plan: "Enterprise Care", cycle: "Yearly", nextBill: "Dec 20", status: "Active", amount: 6000 },
-  { id: "SUB-120", customer: "Oscorp Industries", plan: "Care Plan 2yr", cycle: "Monthly", nextBill: "Sep 22", status: "Active", amount: 550 },
-  { id: "SUB-121", customer: "Virtucon Systems", plan: "Support SLA", cycle: "Monthly", nextBill: "Oct 04", status: "Active", amount: 450 },
-  { id: "SUB-122", customer: "Cybertron Tech", plan: "Basic SLA", cycle: "Monthly", nextBill: "-", status: "Cancelled", amount: 180 },
-  { id: "SUB-123", customer: "Wonka Industries", plan: "Care Plan 1yr", cycle: "Quarterly", nextBill: "Nov 18", status: "Active", amount: 1100 },
-];
-
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(() => localStorage.getItem("dealflow-authenticated") === "true");
-  const [currentTab, setCurrentTab] = useState(() => localStorage.getItem("dealflow-authenticated") === "true" ? "dashboard" : "auth");
-  const [selectedSubscription, setSelectedSubscription] = useState(initialSubscriptions[0]);
-  const [selectedApproval, setSelectedApproval] = useState({
-    quotation: "Q-1042",
-    customer: "Acme Corp",
-    risk: "HIGH",
-    stage: "Sales Manager",
-    assigned: "M. Shah"
+  const [currentUser, setCurrentUser] = useState(() => {
+    try {
+      const stored = localStorage.getItem("dealflow-user");
+      return stored ? JSON.parse(stored) : null;
+    } catch {
+      return null;
+    }
   });
-  const [selectedFulfillment, setSelectedFulfillment] = useState({
-    order: "Q-1042",
-    customer: "Acme Corp",
-    status: "Split Pending",
-    warehouses: "Main + East Depot"
+  const [currentTab, setCurrentTab] = useState(() => {
+    if (localStorage.getItem("dealflow-authenticated") === "true") {
+      try {
+        const stored = localStorage.getItem("dealflow-user");
+        const user = stored ? JSON.parse(stored) : null;
+        if (user && user.role === 'customer') return "customer-portal";
+        if (user && user.role === 'finance_ops') return "approvals";
+      } catch {}
+      return "dashboard";
+    }
+    return "auth";
   });
-  const [selectedInvoice, setSelectedInvoice] = useState({
-    id: "INV-1042",
-    customer: "Acme Corp",
-    amount: "$2,730",
-    status: "Unpaid",
-    dueDate: "Sep 10",
-    type: "One-Time"
-  });
-  const [selectedQuotation, setSelectedQuotation] = useState({
-    id: "Q-1042",
-    customer: "Acme Corp",
-    total: "$2,730",
-    status: "Approval",
-  });
-  const [selectedProduct, setSelectedProduct] = useState({
-    id: "PROD-001",
-    name: "Laptop Pro 14",
-    category: "Hardware",
-    variants: "3 (size)",
-    price: "$1,200",
-    unit: "Each",
-    tax: "15%",
-    status: "Active",
-    billingType: "ONE_TIME"
-  });
+  const [selectedSubscription, setSelectedSubscription] = useState(null);
+  const [selectedApproval, setSelectedApproval] = useState(null);
+  const [selectedFulfillment, setSelectedFulfillment] = useState(null);
+  const [selectedInvoice, setSelectedInvoice] = useState(null);
+  const [selectedQuotation, setSelectedQuotation] = useState(null);
+  const [selectedProduct, setSelectedProduct] = useState(null);
 
   const handleNavigate = (tab, data) => {
     if (tab === "auth") {
       localStorage.removeItem("dealflow-authenticated");
+      localStorage.removeItem("dealflow-user");
+      localStorage.removeItem("dealflow-token");
       setIsAuthenticated(false);
+      setCurrentUser(null);
       setCurrentTab("auth");
       return;
     }
@@ -103,6 +66,33 @@ function App() {
     if (tab === "dashboard" && (currentTab === "auth" || currentTab === "create-account" || !isAuthenticated)) {
       localStorage.setItem("dealflow-authenticated", "true");
       setIsAuthenticated(true);
+      let user = null;
+      try {
+        const stored = localStorage.getItem("dealflow-user");
+        user = stored ? JSON.parse(stored) : null;
+        setCurrentUser(user);
+      } catch {}
+
+      if (user && user.role === 'customer') {
+        setCurrentTab("customer-portal");
+        return;
+      }
+      if (user && user.role === 'finance_ops') {
+        setCurrentTab("approvals");
+        return;
+      }
+    }
+
+    // Intercept manual dashboard clicks if unauthorized
+    if (tab === "dashboard" && currentUser) {
+      if (currentUser.role === 'customer') {
+        setCurrentTab("customer-portal");
+        return;
+      }
+      if (currentUser.role === 'finance_ops') {
+        setCurrentTab("approvals");
+        return;
+      }
     }
 
     setCurrentTab(tab);
@@ -126,7 +116,54 @@ function App() {
     }
   };
 
+  const hasAccess = (tab) => {
+    if (!currentUser) return false;
+    const role = currentUser.role;
+    if (role === 'admin') return true;
+
+    switch (tab) {
+      case 'dashboard':
+      case 'quotations':
+      case 'quotation-detail':
+        return ['salesperson', 'sales_manager'].includes(role);
+      case 'orders':
+      case 'subscriptions':
+      case 'billing-detail':
+      case 'invoices':
+      case 'invoice-detail':
+        return ['salesperson', 'sales_manager', 'finance_ops', 'customer', 'admin'].includes(role);
+      case 'deal-health':
+        return ['sales_manager', 'finance_ops', 'admin'].includes(role);
+      case 'product':
+      case 'product-detail':
+        return ['salesperson', 'sales_manager', 'finance_ops', 'admin'].includes(role);
+      case 'approvals':
+      case 'approval-detail':
+      case 'fulfillment':
+      case 'fulfillment-list':
+      case 'fulfillment-detail':
+        return ['sales_manager', 'finance_ops'].includes(role);
+      case 'reports':
+        return ['sales_manager'].includes(role);
+      case 'discount-rules':
+        return false; // admin only
+      case 'customer-portal':
+        return ['customer'].includes(role);
+      default:
+        return false;
+    }
+  };
+
   const renderContent = () => {
+    if (isAuthenticated && !['auth', 'create-account'].includes(currentTab) && !hasAccess(currentTab)) {
+      return (
+        <main className="content" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', textAlign: 'center' }}>
+          <h1 style={{ color: '#e53e3e', fontSize: '24px', marginBottom: '8px' }}>Access Denied</h1>
+          <p className="subtitle">You do not have permission to view this page.</p>
+        </main>
+      );
+    }
+
     switch (currentTab) {
       case "subscriptions":
         return (
@@ -147,17 +184,17 @@ function App() {
       case "invoices":
         return <Invoices onNavigate={handleNavigate} />;
       case "invoice-detail":
-        return <InvoiceDetailPage onNavigate={handleNavigate} invoice={selectedInvoice} />;
+        return <InvoiceDetailPage onNavigate={handleNavigate} invoice={selectedInvoice} currentUser={currentUser} />;
       case "orders":
         return <SalesOrders onNavigate={handleNavigate} quote={selectedQuotation} />;
       case "customer-portal":
-        return <CustomerPortal onNavigate={handleNavigate} quote={selectedQuotation} />;
+        return <CustomerPortal onNavigate={handleNavigate} quote={selectedQuotation} currentUser={currentUser} />;
       case "dashboard":
         return <Dashboard onNavigate={handleNavigate} />;
       case "quotations":
         return <QuotationsPage onNavigate={handleNavigate} />;
       case "quotation-detail":
-        return <QuotationDetailPage onNavigate={handleNavigate} quote={selectedQuotation} />;
+        return <QuotationDetailPage onNavigate={handleNavigate} quote={selectedQuotation} currentUser={currentUser} />;
       case "deal-health":
         return <DealHealthPage onNavigate={handleNavigate} />;
       case "reports":
@@ -167,6 +204,7 @@ function App() {
           <Products
             onNavigate={handleNavigate}
             onSelectProduct={(prod) => setSelectedProduct(prod)}
+            currentUser={currentUser}
           />
         );
       case "product-detail":
@@ -174,6 +212,7 @@ function App() {
           <ProductDetail
             product={selectedProduct}
             onNavigate={handleNavigate}
+            currentUser={currentUser}
           />
         );
       case "discount-rules":
@@ -187,6 +226,7 @@ function App() {
           <BillingDetail
             subscription={selectedSubscription}
             onNavigate={handleNavigate}
+            currentUser={currentUser}
           />
         );
       default:
@@ -211,6 +251,7 @@ function App() {
     <AppLayout
       currentTab={currentTab}
       onNavigate={handleNavigate}
+      currentUser={currentUser}
       selectedSubscription={selectedSubscription}
       selectedInvoice={selectedInvoice}
       selectedProduct={selectedProduct}

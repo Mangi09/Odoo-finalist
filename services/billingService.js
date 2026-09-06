@@ -19,34 +19,38 @@ async function generateBilling(salesOrder) {
 
   let oneTimeTotal = 0;
   let hasOneTimeItems = false;
+  const subtotalAmount = salesOrder.subtotalAmount || salesOrder.items.reduce((sum, item) => sum + Number(item.lineTotal || 0), 0);
+  const discountFactor = subtotalAmount > 0 ? (Number(salesOrder.totalAmount || subtotalAmount) / subtotalAmount) : 1;
+  const applyGlobalDiscount = (amount) => Math.round(Number(amount || 0) * discountFactor);
 
   for (const item of salesOrder.items) {
     const product = await Product.findById(item.productId);
     const billingType = item.billingType || (product ? product.billingType : 'ONE_TIME');
 
     if (billingType === 'ONE_TIME') {
-      oneTimeTotal += item.lineTotal;
+      oneTimeTotal += applyGlobalDiscount(item.lineTotal);
       hasOneTimeItems = true;
     } else if (billingType === 'RECURRING') {
       const frequency = product ? (product.frequency || 'MONTHLY') : 'MONTHLY';
+      const recurringAmount = applyGlobalDiscount(item.lineTotal);
 
       const sub = await Subscription.create({
         salesOrderId: salesOrder._id,
         salesOrderItemId: item._id || item.quotationItemId,
         productId: item.productId,
         frequency,
-        amount: item.lineTotal,
+        amount: recurringAmount,
         startDate: new Date(),
         status: 'ACTIVE',
       });
       subscriptions.push(sub);
-      logger.info(`Subscription created: ${product ? product.name : item.productId} — ${frequency} — ₹${item.lineTotal}`);
+      logger.info(`Subscription created: ${product ? product.name : item.productId} — ${frequency} — ₹${recurringAmount}`);
 
       // Also create first recurring invoice
       const recurringInvoice = await Invoice.create({
         salesOrderId: salesOrder._id,
         type: 'RECURRING',
-        amount: item.lineTotal,
+        amount: recurringAmount,
         status: 'ISSUED',
         issueDate: new Date(),
         dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // Net 30

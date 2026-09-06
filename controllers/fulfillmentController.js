@@ -2,6 +2,7 @@ const Fulfillment = require('../models/Fulfillment');
 const SalesOrder = require('../models/SalesOrder');
 const Warehouse = require('../models/Warehouse');
 const Product = require('../models/Product');
+const Inventory = require('../models/Inventory');
 const { transitionSalesOrderStatus } = require('../utils/stateMachine');
 const ApiResponse = require('../utils/apiResponse');
 
@@ -9,6 +10,7 @@ function formatFulfillment(f) {
   const order = f.salesOrderId || {};
   const cust = order.customerId || {};
   const warehouse = f.warehouseId || {};
+  const salesperson = order.salespersonId?.name || 'Unassigned';
 
   return {
     _id: f._id,
@@ -16,6 +18,7 @@ function formatFulfillment(f) {
     salesOrderId: order._id,
     salesOrderNumber: order.orderNumber || 'SO-2026-0001',
     customer: cust.name || 'Customer',
+    salesperson,
     warehouse: warehouse.name || 'Main Warehouse',
     allocatedQty: f.allocatedQty,
     status: f.status,
@@ -33,16 +36,40 @@ exports.getFulfillments = async (req, res, next) => {
     const filter = {};
     if (status) filter.status = status.toUpperCase();
     if (salesOrderId) filter.salesOrderId = salesOrderId;
+    if (req.user?.role === 'customer') {
+      const myOrders = await SalesOrder.find({ customerId: req.user.customerId }, '_id');
+      filter.salesOrderId = { $in: myOrders.map(order => order._id) };
+    }
 
     const fulfillments = await Fulfillment.find(filter)
       .populate({
         path: 'salesOrderId',
-        populate: { path: 'customerId' }
+        populate: [{ path: 'customerId' }, { path: 'salespersonId' }]
       })
       .populate('warehouseId')
       .sort({ createdAt: -1 });
 
     return ApiResponse.success(res, fulfillments.map(formatFulfillment));
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.getStock = async (req, res, next) => {
+  try {
+    const stock = await Inventory.find()
+      .populate('warehouseId')
+      .populate('productId')
+      .sort({ updatedAt: -1 });
+
+    return ApiResponse.success(res, stock.map(item => ({
+      _id: item._id,
+      warehouse: item.warehouseId?.name || 'Warehouse',
+      product: item.productId?.name || 'Product',
+      inStock: (item.availableQty || 0) + (item.reservedQty || 0),
+      reserved: item.reservedQty || 0,
+      available: item.availableQty || 0,
+    })));
   } catch (err) {
     next(err);
   }
@@ -56,11 +83,14 @@ exports.getFulfillmentById = async (req, res, next) => {
     const fulfillment = await Fulfillment.findById(req.params.id)
       .populate({
         path: 'salesOrderId',
-        populate: [{ path: 'customerId' }, { path: 'items.productId' }]
+        populate: [{ path: 'customerId' }, { path: 'items.productId' }, { path: 'salespersonId' }]
       })
       .populate('warehouseId');
 
     if (!fulfillment) return ApiResponse.notFound(res, 'Fulfillment not found');
+    if (req.user?.role === 'customer' && fulfillment.salesOrderId?.customerId?._id?.toString() !== req.user.customerId) {
+      return ApiResponse.forbidden(res, 'Access denied. This fulfillment belongs to another customer.');
+    }
 
     return ApiResponse.success(res, formatFulfillment(fulfillment));
   } catch (err) {
@@ -81,6 +111,7 @@ exports.updateFulfillmentStatus = async (req, res, next) => {
 
     const fulfillment = await Fulfillment.findById(req.params.id);
     if (!fulfillment) return ApiResponse.notFound(res, 'Fulfillment not found');
+    if (req.user?.role === 'customer') return ApiResponse.forbidden(res, 'Customers cannot update fulfillment');
 
     fulfillment.status = status;
     await fulfillment.save();

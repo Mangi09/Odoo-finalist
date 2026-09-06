@@ -16,7 +16,7 @@ const logger = require('../utils/logger');
  * @returns {Promise<{ fulfillments: Array, backorders: Array }>}
  */
 async function allocateForSalesOrder(salesOrder) {
-  const warehouses = await Warehouse.find().sort({ priority: 1 }); // lower priority number = higher priority
+  const warehouses = await Warehouse.find({ isArchived: { $ne: true } }).sort({ priority: 1 }); // lower priority number = higher priority
   const fulfillments = [];
   const backorders = [];
 

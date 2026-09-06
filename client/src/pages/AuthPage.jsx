@@ -161,6 +161,21 @@ export default function AuthPage({ onNavigate }) {
               >
                 ⚡ Admin
               </button>
+              <button
+                type="button"
+                onClick={() => handleDemoLogin('customer@dealflow360.com', 'password123')}
+                style={{
+                  background: '#edf2f7',
+                  border: '1px solid #cbd5e0',
+                  borderRadius: '6px',
+                  padding: '4px 10px',
+                  fontSize: '11px',
+                  cursor: 'pointer',
+                  color: '#2d3748'
+                }}
+              >
+                ⚡ Customer
+              </button>
             </div>
           </div>
 

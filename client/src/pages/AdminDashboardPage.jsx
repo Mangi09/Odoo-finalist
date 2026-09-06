@@ -4,27 +4,9 @@ import { api } from "../services/api";
 import { Download, Printer, RefreshCw, TrendingUp, AlertOctagon, CheckCircle2, Clock } from "lucide-react";
 
 export default function AdminDashboardPage({ onNavigate }) {
-  const [kpis, setKpis] = useState({
-    activeDeals: { value: "12", context: "this month" },
-    revenuePipeline: { value: "₹24.8L", context: "Across active opportunities" },
-    pendingApprovals: { value: "3", context: "Requires management attention" },
-    paymentsCollected: { value: "₹9.2L", context: "78% collection rate" }
-  });
-
-  const [lifecycle, setLifecycle] = useState([
-    { name: "Sales", count: 4, avgTime: "2 days", completionRate: "90%" },
-    { name: "Quotation", count: 3, avgTime: "1 day", completionRate: "85%" },
-    { name: "Negotiation", count: 2, avgTime: "3 days", completionRate: "75%" },
-    { name: "Approval", count: 2, avgTime: "1.4 days", completionRate: "92%" },
-    { name: "Fulfillment", count: 1, avgTime: "4 days", completionRate: "95%" },
-    { name: "Invoice & Paid", count: 3, avgTime: "2 days", completionRate: "88%" },
-  ]);
-
-  const [attentionItems, setAttentionItems] = useState([
-    { type: "Approval Bottleneck", deal: "Q-1042", detail: "Waiting on Sales Manager > 48h", severity: "High" },
-    { type: "Delayed Fulfillment", deal: "SO-2026-8942", detail: "Backorder stock split pending at East Depot", severity: "Medium" },
-    { type: "Overdue Invoice", deal: "INV-1039", detail: "Payment overdue by 5 days", severity: "High" }
-  ]);
+  const [kpis, setKpis] = useState({});
+  const [lifecycle, setLifecycle] = useState([]);
+  const [attentionItems, setAttentionItems] = useState([]);
 
   const [loading, setLoading] = useState(false);
 
@@ -44,14 +26,14 @@ export default function AdminDashboardPage({ onNavigate }) {
       if (kpiRes.status === 'fulfilled' && kpiRes.value) {
         setKpis(kpiRes.value);
       }
-      if (lifeRes.status === 'fulfilled' && Array.isArray(lifeRes.value) && lifeRes.value.length > 0) {
+      if (lifeRes.status === 'fulfilled' && Array.isArray(lifeRes.value)) {
         setLifecycle(lifeRes.value);
       }
-      if (attRes.status === 'fulfilled' && Array.isArray(attRes.value) && attRes.value.length > 0) {
+      if (attRes.status === 'fulfilled' && Array.isArray(attRes.value)) {
         setAttentionItems(attRes.value);
       }
     } catch (err) {
-      console.warn("Reports API fallback:", err.message);
+      console.warn("Reports API error:", err.message);
     } finally {
       setLoading(false);
     }
@@ -65,10 +47,10 @@ export default function AdminDashboardPage({ onNavigate }) {
     // Generate clean CSV format
     let csv = "DEALFLOW360 EXECUTIVE REPORT\n\n";
     csv += "KEY METRICS\n";
-    csv += `Active Deals,${kpis.activeDeals?.value || '12'}\n`;
-    csv += `Revenue Pipeline,${kpis.revenuePipeline?.value || '₹24.8L'}\n`;
-    csv += `Pending Approvals,${kpis.pendingApprovals?.value || '3'}\n`;
-    csv += `Payments Collected,${kpis.paymentsCollected?.value || '₹9.2L'}\n\n`;
+    csv += `Active Deals,${kpis.activeDeals?.value || '0'}\n`;
+    csv += `Revenue Pipeline,${kpis.revenuePipeline?.value || '₹0.0L'}\n`;
+    csv += `Pending Approvals,${kpis.pendingApprovals?.value || '0'}\n`;
+    csv += `Payments Collected,${kpis.paymentsCollected?.value || '₹0.0L'}\n\n`;
 
     csv += "DEAL LIFECYCLE FUNNEL\n";
     csv += "Stage,Count,Avg Time,Completion Rate\n";
@@ -122,15 +104,15 @@ export default function AdminDashboardPage({ onNavigate }) {
           <div className="mini-card">
             <div className="mini-card-title">Active Deals in Pipeline</div>
             <div className="mini-card-value" style={{ color: "#2563eb" }}>
-              {kpis.activeDeals?.value || "12"}
+              {kpis.activeDeals?.value || "0"}
             </div>
-            <small style={{ color: "#64748b" }}>{kpis.activeDeals?.context || "Active this month"}</small>
+            <small style={{ color: "#64748b" }}>{kpis.activeDeals?.context || "assigned customers"}</small>
           </div>
 
           <div className="mini-card">
             <div className="mini-card-title">Revenue Pipeline</div>
             <div className="mini-card-value" style={{ color: "#16a34a" }}>
-              {kpis.revenuePipeline?.value || "₹24.8L"}
+              {kpis.revenuePipeline?.value || "₹0.0L"}
             </div>
             <small style={{ color: "#64748b" }}>{kpis.revenuePipeline?.context || "Across open proposals"}</small>
           </div>
@@ -138,7 +120,7 @@ export default function AdminDashboardPage({ onNavigate }) {
           <div className="mini-card">
             <div className="mini-card-title">Pending Approvals</div>
             <div className="mini-card-value" style={{ color: "#d97706" }}>
-              {kpis.pendingApprovals?.value || "3"}
+              {kpis.pendingApprovals?.value || "0"}
             </div>
             <small style={{ color: "#64748b" }}>{kpis.pendingApprovals?.context || "Needs manager review"}</small>
           </div>
@@ -146,7 +128,7 @@ export default function AdminDashboardPage({ onNavigate }) {
           <div className="mini-card">
             <div className="mini-card-title">Payments Collected</div>
             <div className="mini-card-value" style={{ color: "#7c3aed" }}>
-              {kpis.paymentsCollected?.value || "₹9.2L"}
+              {kpis.paymentsCollected?.value || "₹0.0L"}
             </div>
             <small style={{ color: "#64748b" }}>{kpis.paymentsCollected?.context || "Captured revenue"}</small>
           </div>
@@ -168,7 +150,7 @@ export default function AdminDashboardPage({ onNavigate }) {
               </tr>
             </thead>
             <tbody>
-              {lifecycle.map((stage, idx) => (
+              {lifecycle.length > 0 ? lifecycle.map((stage, idx) => (
                 <tr key={idx}>
                   <td style={{ fontWeight: 600, color: "#1a365d" }}>{stage.name}</td>
                   <td><strong>{stage.count}</strong> deals</td>
@@ -185,7 +167,11 @@ export default function AdminDashboardPage({ onNavigate }) {
                     <span className="badge green">Healthy</span>
                   </td>
                 </tr>
-              ))}
+              )) : (
+                <tr>
+                  <td colSpan="5">No report data found for assigned customers.</td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
@@ -206,7 +192,7 @@ export default function AdminDashboardPage({ onNavigate }) {
               </tr>
             </thead>
             <tbody>
-              {attentionItems.map((item, idx) => (
+              {attentionItems.length > 0 ? attentionItems.map((item, idx) => (
                 <tr key={idx}>
                   <td style={{ fontWeight: 600 }}>{item.type}</td>
                   <td style={{ color: "#1a365d", fontWeight: 600 }}>{item.deal}</td>
@@ -230,7 +216,11 @@ export default function AdminDashboardPage({ onNavigate }) {
                     </button>
                   </td>
                 </tr>
-              ))}
+              )) : (
+                <tr>
+                  <td colSpan="5">No attention items found for assigned customers.</td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>

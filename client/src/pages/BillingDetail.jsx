@@ -1,68 +1,55 @@
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import "../App.css";
+import { api } from "../services/api";
 
-const customerLinesMap = {
-  "Acme Corp": {
-    oneTime: [
-      { product: "Laptop Pro 14", qty: 2, amount: "$2,280" },
-      { product: "Onsite Setup", qty: 1, amount: "$450" },
-    ],
-    recurring: [
-      { plan: "Care Plan 2yr", cycle: "Monthly", nextBill: "Sep 15", amount: "$46" },
-      { plan: "Support SLA", cycle: "Quarterly", nextBill: "Nov 1", amount: "$300" },
-    ],
-  },
-  "Beta Industries": {
-    oneTime: [
-      { product: "Workstation Desktop Ultra", qty: 5, amount: "$7,500" },
-      { product: "Network Configuration", qty: 1, amount: "$1,200" },
-    ],
-    recurring: [
-      { plan: "Support SLA", cycle: "Quarterly", nextBill: "Nov 1", amount: "$1,200" },
-      { plan: "Backup Cloud Storage", cycle: "Monthly", nextBill: "Sep 30", amount: "$250" },
-    ],
-  },
-  "Delta LLC": {
-    oneTime: [
-      { product: "Server Rack 42U", qty: 1, amount: "$3,400" },
-      { product: "Hardware Installation", qty: 1, amount: "$800" },
-    ],
-    recurring: [
-      { plan: "Care Plan 1yr", cycle: "Monthly", nextBill: "-", amount: "$299" },
-    ],
-  },
-};
-
-function BillingDetail({ subscription, onNavigate, onUpdateSubscriptionStatus }) {
+function BillingDetail({ subscription, onNavigate, onUpdateSubscriptionStatus, currentUser }) {
+  const [currentSub, setCurrentSub] = useState(subscription || {});
   const [subStatus, setSubStatus] = useState(subscription?.status || "Active");
   const [notification, setNotification] = useState("");
   const [showModifyModal, setShowModifyModal] = useState(false);
   const [selectedCycle, setSelectedCycle] = useState(subscription?.cycle || "Monthly");
+  const canModify = !['salesperson', 'customer'].includes(currentUser?.role);
 
-  const customerName = subscription?.customer || "Acme Corp";
-  const planName = subscription?.plan || "Care Plan 2yr";
+  useEffect(() => {
+    setCurrentSub(subscription || {});
+    setSubStatus(subscription?.status || "Active");
+    setSelectedCycle(subscription?.cycle || "Monthly");
+    if (subscription?._id) {
+      api.subscriptions.getById(subscription._id)
+        .then(data => {
+          setCurrentSub(prev => ({ ...prev, ...data }));
+          setSubStatus(data?.status || subscription?.status || "Active");
+          setSelectedCycle(data?.cycle || subscription?.cycle || "Monthly");
+        })
+        .catch(err => setNotification(`Unable to load subscription: ${err.message}`));
+    }
+  }, [subscription]);
 
-  const customerData = customerLinesMap[customerName] || {
-    oneTime: [
-      { product: "Enterprise Hardware Bundle", qty: 1, amount: "$2,500" },
-      { product: "Initial Deployment Service", qty: 1, amount: "$500" },
-    ],
-    recurring: [
-      {
-        plan: planName,
-        cycle: selectedCycle,
-        nextBill: subscription?.nextBill || "Sep 15",
-        amount: `$${subscription?.amount || 499}`,
-      },
-    ],
-  };
+  const customerName = currentSub?.customer || "Customer";
+  const planName = currentSub?.plan || "Subscription";
+  const amount = Number(currentSub?.amount || 0);
+  const customerData = useMemo(() => ({
+    oneTime: [],
+    recurring: [{
+      plan: planName,
+      cycle: selectedCycle,
+      nextBill: currentSub?.nextBill || "-",
+      amount: `₹${amount.toLocaleString('en-IN')}`,
+    }],
+  }), [planName, selectedCycle, currentSub?.nextBill, amount]);
 
-  const handleCancel = () => {
+  const handleCancel = async () => {
+    if (!canModify) return;
     if (window.confirm(`Are you sure you want to cancel subscription for ${customerName}?`)) {
-      setSubStatus("Cancelled");
-      setNotification(`Subscription for ${customerName} has been cancelled.`);
-      if (onUpdateSubscriptionStatus && subscription?.id) {
-        onUpdateSubscriptionStatus(subscription.id, "Cancelled");
+      try {
+        if (currentSub?._id) await api.subscriptions.updateStatus(currentSub._id, "CANCELLED");
+        setSubStatus("Cancelled");
+        setNotification(`Subscription for ${customerName} has been cancelled.`);
+        if (onUpdateSubscriptionStatus && currentSub?.id) {
+          onUpdateSubscriptionStatus(currentSub.id, "Cancelled");
+        }
+      } catch (err) {
+        setNotification(`Unable to cancel subscription: ${err.message}`);
       }
     }
   };
@@ -193,6 +180,7 @@ function BillingDetail({ subscription, onNavigate, onUpdateSubscriptionStatus })
         </div>
 
         {/* Section 3: Actions */}
+        {canModify && (
         <div className="page-card">
           <div className="page-header-left" style={{ display: "flex", gap: "12px" }}>
             <button
@@ -211,6 +199,7 @@ function BillingDetail({ subscription, onNavigate, onUpdateSubscriptionStatus })
             </button>
           </div>
         </div>
+        )}
 
         {/* Modify Modal */}
         {showModifyModal && (

@@ -2,13 +2,11 @@ const Product = require('../models/Product');
 const Category = require('../models/Category');
 const ApiResponse = require('../utils/apiResponse');
 
-// Helper to format product matching frontend Products.jsx mock shape:
-// { id, name, category, variants, price, unit, tax, status, billingType }
 function formatProduct(p) {
   const categoryName = p.categoryId?.name || p.category?.name || p.category || 'Hardware';
   const priceDisplay = p.billingType === 'RECURRING'
-    ? `$${p.sellingPrice?.toLocaleString() || 0}/month`
-    : `$${p.sellingPrice?.toLocaleString() || 0}`;
+    ? `₹${p.sellingPrice?.toLocaleString('en-IN') || 0}/month`
+    : `₹${p.sellingPrice?.toLocaleString('en-IN') || 0}`;
 
   return {
     _id: p._id,

@@ -1,12 +1,19 @@
 const { getKpis, getLifecycleStages, getAnalytics, getAttentionItems, getActivity } = require('../services/reportsService');
+const Customer = require('../models/Customer');
 const ApiResponse = require('../utils/apiResponse');
+
+async function getCustomerScope(req) {
+  if (req.user?.role !== 'sales_manager') return null;
+  const customers = await Customer.find({ salespersonId: req.user.id }, '_id');
+  return customers.map(customer => customer._id);
+}
 
 /**
  * GET /api/v1/reports/kpis
  */
 exports.getKpisReport = async (req, res, next) => {
   try {
-    const data = await getKpis();
+    const data = await getKpis(await getCustomerScope(req));
     return ApiResponse.success(res, data);
   } catch (err) {
     next(err);
@@ -18,7 +25,7 @@ exports.getKpisReport = async (req, res, next) => {
  */
 exports.getLifecycleReport = async (req, res, next) => {
   try {
-    const data = await getLifecycleStages();
+    const data = await getLifecycleStages(await getCustomerScope(req));
     return ApiResponse.success(res, data);
   } catch (err) {
     next(err);
@@ -30,7 +37,7 @@ exports.getLifecycleReport = async (req, res, next) => {
  */
 exports.getAnalyticsReport = async (req, res, next) => {
   try {
-    const data = await getAnalytics();
+    const data = await getAnalytics(await getCustomerScope(req));
     return ApiResponse.success(res, data);
   } catch (err) {
     next(err);
@@ -42,7 +49,7 @@ exports.getAnalyticsReport = async (req, res, next) => {
  */
 exports.getAttentionReport = async (req, res, next) => {
   try {
-    const data = await getAttentionItems();
+    const data = await getAttentionItems(await getCustomerScope(req));
     return ApiResponse.success(res, data);
   } catch (err) {
     next(err);
@@ -54,7 +61,7 @@ exports.getAttentionReport = async (req, res, next) => {
  */
 exports.getActivityReport = async (req, res, next) => {
   try {
-    const data = await getActivity();
+    const data = await getActivity(await getCustomerScope(req));
     return ApiResponse.success(res, data);
   } catch (err) {
     next(err);

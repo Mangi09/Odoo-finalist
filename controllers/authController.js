@@ -26,7 +26,7 @@ async function login(req, res, next) {
     }
 
     const token = jwt.sign(
-      { id: user._id, role: user.role, name: user.name },
+      { id: user._id, role: user.role, name: user.name, customerId: user.customerId },
       process.env.JWT_SECRET,
       { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
     );
@@ -38,6 +38,7 @@ async function login(req, res, next) {
         name: user.name,
         email: user.email,
         role: user.role,
+        customerId: user.customerId,
       },
     });
   } catch (err) {
@@ -69,7 +70,7 @@ async function register(req, res, next) {
     });
 
     const token = jwt.sign(
-      { id: user._id, role: user.role, name: user.name },
+      { id: user._id, role: user.role, name: user.name, customerId: user.customerId },
       process.env.JWT_SECRET,
       { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
     );
@@ -81,6 +82,7 @@ async function register(req, res, next) {
         name: user.name,
         email: user.email,
         role: user.role,
+        customerId: user.customerId,
       },
     });
   } catch (err) {
@@ -94,7 +96,9 @@ async function register(req, res, next) {
  */
 async function getMe(req, res, next) {
   try {
-    const user = await User.findById(req.user.id).select('-passwordHash');
+    const user = await User.findById(req.user.id)
+      .select('-passwordHash')
+      .populate({ path: 'customerId', populate: { path: 'salespersonId', select: 'name' } });
     if (!user) {
       return ApiResponse.notFound(res, 'User');
     }

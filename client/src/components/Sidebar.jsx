@@ -1,4 +1,5 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
+import { api } from "../services/api";
 import {
   House,
   CircleStar,
@@ -16,8 +17,18 @@ import {
   Sparkles
 } from "lucide-react";
 
-export default function Sidebar({ currentTab, onNavigate }) {
-  const navItems = [
+export default function Sidebar({ currentTab, onNavigate, currentUser }) {
+  const role = currentUser?.role || 'salesperson';
+  const [salespersonName, setSalespersonName] = useState('');
+
+  useEffect(() => {
+    if (role !== 'customer') return;
+    api.auth.me()
+      .then(user => setSalespersonName(user.customerId?.salespersonId?.name || 'Unassigned'))
+      .catch(() => setSalespersonName('Unassigned'));
+  }, [role]);
+
+  const allNavItems = [
     { id: "dashboard", label: "Dashboard", icon: <House size={18} /> },
     { id: "quotations", label: "Quotations", icon: <CircleStar size={18} /> },
     { id: "approvals", label: "Approvals", icon: <CircleCheck size={18} /> },
@@ -30,6 +41,32 @@ export default function Sidebar({ currentTab, onNavigate }) {
     { id: "product", label: "Product", icon: <Box size={18} /> },
     { id: "customer-portal", label: "Customer Portal", icon: <Users size={18} /> }
   ];
+
+  const navItems = allNavItems.filter(item => {
+    if (role === 'admin') return true;
+    switch (item.id) {
+      case 'dashboard':
+      case 'quotations':
+        return ['salesperson', 'sales_manager'].includes(role);
+      case 'orders':
+      case 'subscriptions':
+      case 'invoices':
+        return ['salesperson', 'sales_manager', 'finance_ops', 'customer'].includes(role);
+      case 'deal-health':
+        return ['sales_manager', 'finance_ops'].includes(role);
+      case 'product':
+        return ['salesperson', 'sales_manager', 'finance_ops'].includes(role);
+      case 'approvals':
+      case 'fulfillment':
+        return ['sales_manager', 'finance_ops'].includes(role);
+      case 'reports':
+        return role === 'sales_manager';
+      case 'customer-portal':
+        return ['customer'].includes(role);
+      default:
+        return false;
+    }
+  });
 
   const isItemActive = (id) => {
     if (currentTab === id) return true;
@@ -67,12 +104,12 @@ export default function Sidebar({ currentTab, onNavigate }) {
       <div className="sidebar-profile-card">
         <div className="profile-icon-wrapper">
           <div className="profile-hex-badge">
-            <span className="profile-initials">DF</span>
+            <span className="profile-initials">{currentUser?.name ? currentUser.name.slice(0, 2).toUpperCase() : 'DF'}</span>
           </div>
         </div>
         <div className="profile-details">
-          <span className="greeting-title">Welcome Home!</span>
-          <span className="greeting-subtitle">Bestro Enterprise Hub</span>
+          <span className="greeting-title">Welcome, {currentUser?.name ? currentUser.name.split(' ')[0] : 'User'}!</span>
+          <span className="greeting-subtitle">{role === 'customer' ? `CUSTOMER · REP: ${salespersonName || 'Loading...'}` : role.replace('_', ' ').toUpperCase()}</span>
         </div>
       </div>
 

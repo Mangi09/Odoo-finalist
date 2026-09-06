@@ -33,11 +33,16 @@ export default function CreateAccountPage({ onNavigate }) {
     setError('');
 
     try {
+      let backendRole = 'salesperson';
+      if (role === 'manager') backendRole = 'sales_manager';
+      else if (role === 'admin') backendRole = 'admin';
+      else if (role === 'customer') backendRole = 'customer';
+
       const res = await api.auth.register({
         name: name.trim(),
         email: email.trim(),
         password,
-        role: role.toLowerCase().includes('manager') ? 'manager' : (role.toLowerCase().includes('admin') ? 'admin' : 'salesperson'),
+        role: backendRole,
       });
 
       if (res && res.token) {

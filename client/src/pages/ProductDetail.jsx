@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import "../App.css";
 
-function ProductDetail({ product, onNavigate, onSaveProduct }) {
+function ProductDetail({ product, onNavigate, onSaveProduct, currentUser }) {
   const [formData, setFormData] = useState({
     name: "",
     category: "Hardware",
@@ -16,6 +16,8 @@ function ProductDetail({ product, onNavigate, onSaveProduct }) {
 
   const [notification, setNotification] = useState("");
   const [errors, setErrors] = useState({});
+  const canEditProduct = ['sales_manager', 'admin'].includes(currentUser?.role);
+  const canManagePriceRules = currentUser?.role === 'admin';
 
   useEffect(() => {
     if (product && !product.isNew) {
@@ -43,6 +45,10 @@ function ProductDetail({ product, onNavigate, onSaveProduct }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    if (!canEditProduct) {
+      setNotification("Product catalog is read-only for salesperson users.");
+      return;
+    }
     const newErrors = {};
 
     if (!formData.name.trim()) {
@@ -65,7 +71,7 @@ function ProductDetail({ product, onNavigate, onSaveProduct }) {
       name: formData.name,
       category: formData.category,
       variants: product?.variants || "Standard",
-      price: formData.isSubscription === "Yes" ? `$${formData.price}/month` : `$${formData.price}`,
+      price: formData.isSubscription === "Yes" ? `₹${formData.price}/month` : `₹${formData.price}`,
       unit: formData.isSubscription === "Yes" ? "Recurring" : formData.unit,
       tax: formData.tax.includes("%") ? formData.tax : `${formData.tax}%`,
       status: "Active",
@@ -139,20 +145,22 @@ function ProductDetail({ product, onNavigate, onSaveProduct }) {
               &larr; Back to Products
             </button>
 
-            <button
-              style={{
-                height: "36px",
-                padding: "0 14px",
-                borderRadius: "8px",
-                border: "1px solid #777",
-                background: "#ffffff",
-                fontSize: "12px",
-                cursor: "pointer",
-              }}
-              onClick={() => onNavigate && onNavigate("discount-rules")}
-            >
-              Manage Price Rules
-            </button>
+            {canManagePriceRules && (
+              <button
+                style={{
+                  height: "36px",
+                  padding: "0 14px",
+                  borderRadius: "8px",
+                  border: "1px solid #777",
+                  background: "#ffffff",
+                  fontSize: "12px",
+                  cursor: "pointer",
+                }}
+                onClick={() => onNavigate && onNavigate("discount-rules")}
+              >
+                Manage Price Rules
+              </button>
+            )}
           </div>
         </div>
 
@@ -163,6 +171,7 @@ function ProductDetail({ product, onNavigate, onSaveProduct }) {
         )}
 
         <form onSubmit={handleSubmit}>
+          <fieldset disabled={!canEditProduct} style={{ border: 0, padding: 0, margin: 0 }}>
           {/* General Info Section Card */}
           <div
             style={{
@@ -227,7 +236,7 @@ function ProductDetail({ product, onNavigate, onSaveProduct }) {
 
                 <div style={{ marginBottom: "12px" }}>
                   <label style={{ display: "block", fontSize: "12px", color: "#555", marginBottom: "4px" }}>
-                    Price ($)
+                    Price (₹)
                   </label>
                   <input
                     type="text"
@@ -406,17 +415,18 @@ function ProductDetail({ product, onNavigate, onSaveProduct }) {
                   <tr>
                     <td>RAM</td>
                     <td>4GB, 8GB</td>
-                    <td>+$30</td>
+                    <td>+₹30</td>
                   </tr>
                   <tr>
                     <td>Manufacturer</td>
                     <td>Dell, HP</td>
-                    <td>+$10/+$30</td>
+                    <td>+₹10/+₹30</td>
                   </tr>
                 </tbody>
               </table>
             </div>
           </div>
+          </fieldset>
 
           {/* Pricelists Section */}
           <div style={{ marginBottom: "24px" }}>
@@ -436,12 +446,12 @@ function ProductDetail({ product, onNavigate, onSaveProduct }) {
                 <tbody>
                   <tr>
                     <td>Bronze</td>
-                    <td>USD</td>
+                    <td>INR</td>
                     <td>Price, no adjustment</td>
                   </tr>
                   <tr>
                     <td>Gold</td>
-                    <td>USD/EUR</td>
+                    <td>INR</td>
                     <td>Price minus 10 percent base</td>
                   </tr>
                 </tbody>
@@ -450,28 +460,32 @@ function ProductDetail({ product, onNavigate, onSaveProduct }) {
           </div>
 
           {/* Form Action Buttons */}
-          <div style={{ display: "flex", gap: "12px", marginBottom: "20px" }}>
-            <button
-              type="submit"
-              style={{
-                height: "40px",
-                padding: "0 24px",
-                borderRadius: "10px",
-                border: "1px solid #1976bd",
-                background: "#1976bd",
-                color: "#ffffff",
-                fontSize: "12px",
-                cursor: "pointer",
-              }}
-            >
-              Save Product
-            </button>
-          </div>
+          {canEditProduct && (
+            <div style={{ display: "flex", gap: "12px", marginBottom: "20px" }}>
+              <button
+                type="submit"
+                style={{
+                  height: "40px",
+                  padding: "0 24px",
+                  borderRadius: "10px",
+                  border: "1px solid #1976bd",
+                  background: "#1976bd",
+                  color: "#ffffff",
+                  fontSize: "12px",
+                  cursor: "pointer",
+                }}
+              >
+                Save Product
+              </button>
+            </div>
+          )}
         </form>
 
         {/* Information Banner Box */}
         <div className="info-box">
-          Product details should be filled. Recurring order with this product will be invoiced at the beginning of the period.
+          {canEditProduct
+            ? "Product details should be filled. Recurring order with this product will be invoiced at the beginning of the period."
+            : "Product catalog is available as read-only for this role."}
         </div>
       </main>
     </div>

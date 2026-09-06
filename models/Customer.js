@@ -22,6 +22,11 @@ const customerSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    salespersonId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      index: true,
+    },
     tierId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'CustomerTier',

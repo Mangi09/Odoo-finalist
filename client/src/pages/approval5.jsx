@@ -3,43 +3,8 @@ import "../App.css";
 import { api } from "../services/api";
 import { RefreshCw } from "lucide-react";
 
-const defaultApprovals = [
-  {
-    quotation: "Q-1042",
-    customer: "Acme Corp",
-    risk: "HIGH",
-    stage: "Sales Manager",
-    assigned: "M. Shah",
-    status: "PENDING",
-  },
-  {
-    quotation: "Q-1039",
-    customer: "Beta Industries",
-    risk: "MEDIUM",
-    stage: "Finance",
-    assigned: "R. Iyer",
-    status: "PENDING",
-  },
-  {
-    quotation: "Q-1035",
-    customer: "Nova Retail",
-    risk: "LOW",
-    stage: "Auto-Approved",
-    assigned: "-",
-    status: "APPROVED",
-  },
-  {
-    quotation: "Q-1031",
-    customer: "Delta LLC",
-    risk: "HIGH",
-    stage: "Returned",
-    assigned: "M. Shah",
-    status: "RETURNED",
-  }
-];
-
 function Approvals({ onNavigate }) {
-  const [approvals, setApprovals] = useState(defaultApprovals);
+  const [approvals, setApprovals] = useState([]);
   const [filter, setFilter] = useState("all");
   const [loading, setLoading] = useState(false);
 
@@ -51,42 +16,41 @@ function Approvals({ onNavigate }) {
     setLoading(true);
     try {
       const data = await api.approvals.getAll();
-      if (Array.isArray(data) && data.length > 0) {
-        // Merge backend data with demo items to provide a rich list
+      if (Array.isArray(data)) {
         const mapped = data.map(item => ({
           _id: item._id,
-          quotation: item.quotation || 'Q-1042',
+          quotation: item.quotation,
           quotationId: item.quotationId,
-          customer: item.customer || 'Acme Corp',
-          risk: item.risk || 'MEDIUM',
-          stage: item.stage || 'Sales Manager',
-          assigned: item.assigned || 'M. Shah',
-          status: item.status || 'PENDING',
+          customer: item.customer,
+          salesperson: item.salesperson,
+          risk: item.risk,
+          stage: item.stage,
+          assigned: item.assigned,
+          status: item.status,
           marginImpact: item.marginImpact,
           requestedDiscount: item.requestedDiscount,
           allowedDiscount: item.allowedDiscount,
+          reason: item.reason,
         }));
 
-        // Deduplicate with defaults
-        const existingIds = new Set(mapped.map(m => m.quotation));
-        const combined = [...mapped, ...defaultApprovals.filter(d => !existingIds.has(d.quotation))];
-        setApprovals(combined);
+        setApprovals(mapped);
       }
     } catch (err) {
-      console.warn("Using default approvals fallback:", err.message);
+      console.warn("Could not load approvals:", err.message);
+      setApprovals([]);
     } finally {
       setLoading(false);
     }
   };
 
   const pendingCount = approvals.filter(a => a.status === "PENDING").length;
-  const returnedCount = approvals.filter(a => a.status === "RETURNED" || a.stage?.toLowerCase().includes("return")).length;
+  const returnedCount = approvals.filter(a => a.status === "RETURNED" || a.status === "REJECTED" || a.stage?.toLowerCase().includes("return") || a.stage?.toLowerCase().includes("reject")).length;
   const approvedCount = approvals.filter(a => a.status === "APPROVED" || a.stage?.toLowerCase().includes("auto-approved")).length;
 
   const filteredApprovals = approvals.filter((a) => {
     if (filter === "all") return true;
-    if (filter === "pending") return a.status === "PENDING" && !a.stage?.toLowerCase().includes("return");
-    if (filter === "returned") return a.status === "RETURNED" || a.stage?.toLowerCase().includes("return");
+    if (filter === "pending") return a.status === "PENDING" && !a.stage?.toLowerCase().includes("return") && !a.stage?.toLowerCase().includes("reject");
+    if (filter === "returned") return a.status === "RETURNED" || a.status === "REJECTED" || a.stage?.toLowerCase().includes("return") || a.stage?.toLowerCase().includes("reject");
     if (filter === "approved") return a.status === "APPROVED" || a.stage?.toLowerCase().includes("auto-approved");
     return true;
   });
@@ -124,7 +88,7 @@ function Approvals({ onNavigate }) {
             title="Click to filter Returned"
             style={{ outline: filter === "returned" ? "2px solid #e82d32" : "none" }}
           >
-            <span>{returnedCount} Returned</span>
+            <span>{returnedCount} Rejected/Returned</span>
           </div>
 
           <div
@@ -148,7 +112,7 @@ function Approvals({ onNavigate }) {
           >
             <option value="all">All Approvals ({approvals.length})</option>
             <option value="pending">Pending Only ({pendingCount})</option>
-            <option value="returned">Returned ({returnedCount})</option>
+            <option value="returned">Rejected/Returned ({returnedCount})</option>
             <option value="approved">Approved ({approvedCount})</option>
           </select>
         </div>
@@ -160,8 +124,11 @@ function Approvals({ onNavigate }) {
               <tr>
                 <th>Quotation</th>
                 <th>Customer</th>
+                <th>Salesperson</th>
                 <th>Blended Risk</th>
                 <th>Stage</th>
+                <th>Status</th>
+                <th>Reason</th>
                 <th>Assigned To</th>
               </tr>
             </thead>
@@ -176,18 +143,25 @@ function Approvals({ onNavigate }) {
                   >
                     <td style={{ fontWeight: 600, color: "#1a365d" }}>{approval.quotation}</td>
                     <td>{approval.customer}</td>
+                    <td>{approval.salesperson || 'Unassigned'}</td>
                     <td>
                       <span className={`badge ${approval.risk === "HIGH" ? "red" : (approval.risk === "MEDIUM" ? "orange" : "green")}`}>
                         {approval.risk}
                       </span>
                     </td>
                     <td>{approval.stage}</td>
+                    <td>
+                      <span className={`badge ${approval.status === "REJECTED" ? "red" : (approval.status === "APPROVED" ? "green" : "orange")}`}>
+                        {approval.status}
+                      </span>
+                    </td>
+                    <td>{approval.status === "REJECTED" ? (approval.reason || "Rejected") : (approval.reason || "-")}</td>
                     <td>{approval.assigned}</td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan={5} style={{ textAlign: "center", padding: "20px", color: "#718096" }}>
+                  <td colSpan={8} style={{ textAlign: "center", padding: "20px", color: "#718096" }}>
                     No approvals match the selected filter ({filter}).
                   </td>
                 </tr>

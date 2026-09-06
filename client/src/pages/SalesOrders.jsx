@@ -3,15 +3,12 @@ import "../App.css";
 import { api } from "../services/api";
 import { RefreshCw } from "lucide-react";
 
-const initialOrders = [
-  { id: "SO-1042", customer: "Acme Corp", source: "Q-1042", status: "Fulfillment Pending", invoice: "INV-1042" },
-  { id: "SO-1041", customer: "Acme Corp", source: "Q-1041", status: "Partial", invoice: "INV-1043" },
-  { id: "SO-1038", customer: "Nova Retail", source: "Q-1038", status: "Delivered", invoice: "INV-1038" },
-];
-
 export default function SalesOrders({ onNavigate }) {
-  const [orders, setOrders] = useState(initialOrders);
+  const [orders, setOrders] = useState([]);
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [searchFilter, setSearchFilter] = useState("");
   const [loading, setLoading] = useState(false);
+  const role = JSON.parse(localStorage.getItem('dealflow-user') || '{}')?.role;
 
   useEffect(() => {
     loadSalesOrders();
@@ -21,27 +18,31 @@ export default function SalesOrders({ onNavigate }) {
     setLoading(true);
     try {
       const data = await api.salesOrders.getAll();
-      if (Array.isArray(data) && data.length > 0) {
+      if (Array.isArray(data)) {
         const mapped = data.map((o, idx) => ({
           _id: o._id,
           id: o.orderNumber || `SO-2026-${String(idx + 1).padStart(4, '0')}`,
           customer: o.customer || o.customerId?.name || "Customer Corp",
-          source: o.quotationNumber || `Q-${o._id.toString().slice(-4).toUpperCase()}`,
+          source: o.quotationNumber || (o.quotationId?.quotationNumber) || "",
           status: o.status === 'CONFIRMED' ? 'Fulfillment Pending' : (o.status === 'PAID' ? 'Delivered' : o.status),
-          invoice: `INV-${o._id.toString().slice(-4).toUpperCase()}`,
-          totalAmount: o.totalAmount
+          invoice: o.invoiceNumber || "",
+          totalAmount: o.totalAmount,
+          salesperson: o.salesperson || 'Unassigned'
         }));
-
-        const existingIds = new Set(mapped.map(m => m.id));
-        const combined = [...mapped, ...initialOrders.filter(d => !existingIds.has(d.id))];
-        setOrders(combined);
+        setOrders(mapped);
       }
     } catch (err) {
-      console.warn("SalesOrders API fallback:", err.message);
+      console.warn("Could not load sales orders:", err.message);
+      setOrders([]);
     } finally {
       setLoading(false);
     }
   };
+
+  const filteredOrders = orders.filter(order => {
+    const text = `${order.id} ${order.customer} ${order.salesperson} ${order.source} ${order.invoice} ${order.status}`.toLowerCase();
+    return (statusFilter === "all" || order.status === statusFilter) && text.includes(searchFilter.toLowerCase());
+  });
 
   return (
     <main className="content">
@@ -58,26 +59,48 @@ export default function SalesOrders({ onNavigate }) {
           </button>
         </div>
 
+        <div className="filter-section" style={{ display: "flex", gap: "10px", flexWrap: "wrap", margin: "14px 0" }}>
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            style={{ padding: "6px 12px", borderRadius: "6px", border: "1px solid #cbd5e0", fontSize: "13px" }}
+          >
+            <option value="all">All Statuses</option>
+            {[...new Set(orders.map(order => order.status).filter(Boolean))].map(status => (
+              <option key={status} value={status}>{status}</option>
+            ))}
+          </select>
+          <input
+            type="text"
+            value={searchFilter}
+            onChange={(e) => setSearchFilter(e.target.value)}
+            placeholder="Filter by order, customer, salesperson, quote, invoice..."
+            style={{ flex: 1, minWidth: "220px", padding: "6px 12px", borderRadius: "6px", border: "1px solid #cbd5e0", fontSize: "13px" }}
+          />
+        </div>
+
         <div className="table-wrapper">
           <table>
             <thead>
               <tr>
                 <th>Order Number</th>
                 <th>Customer</th>
+                <th>Salesperson</th>
                 <th>Source Quote</th>
                 <th>Execution Status</th>
                 <th>Invoice Ref</th>
               </tr>
             </thead>
             <tbody>
-              {orders.map((order) => (
+              {filteredOrders.map((order) => (
                 <tr
                   key={order._id || order.id}
-                  onClick={() => onNavigate && onNavigate("fulfillment-list", { order: order.source, customer: order.customer, status: "Split Pending", warehouses: "Main + East Depot" })}
-                  style={{ cursor: "pointer" }}
+                  onClick={() => role !== 'salesperson' && onNavigate && onNavigate("fulfillment-list", { order: order.source, customer: order.customer, status: "Split Pending", warehouses: "Main + East Depot" })}
+                  style={{ cursor: role === 'salesperson' ? "default" : "pointer" }}
                 >
                   <td style={{ fontWeight: 600, color: "#1a365d" }}>{order.id}</td>
                   <td>{order.customer}</td>
+                  <td>{order.salesperson}</td>
                   <td>{order.source}</td>
                   <td>
                     <span className={`badge ${order.status === "Delivered" ? "green" : (order.status.includes("Pending") ? "orange" : "blue")}`}>

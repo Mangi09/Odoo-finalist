@@ -70,7 +70,9 @@ async function evaluateQuotation(quotation, customer) {
     if (!product) continue;
 
     const limits = await getEffectiveLimit(tierId, product.categoryId);
-    const requestedDiscount = item.discountPercent || 0;
+    const lineDiscount = item.discountPercent || 0;
+    const globalDiscount = quotation.globalDiscountPercent || 0;
+    const requestedDiscount = Number((100 - ((100 - lineDiscount) * (100 - globalDiscount) / 100)).toFixed(2));
     const exceedsLimit = requestedDiscount > limits.effectiveLimit;
 
     if (exceedsLimit) {
@@ -85,6 +87,8 @@ async function evaluateQuotation(quotation, customer) {
       productId: product._id,
       productName: product.name,
       requestedDiscount,
+      lineDiscount,
+      globalDiscount,
       effectiveLimit: limits.effectiveLimit,
       tierLimit: limits.tierLimit,
       categoryLimit: limits.categoryLimit,
@@ -92,7 +96,7 @@ async function evaluateQuotation(quotation, customer) {
       approvalLevel: exceedsLimit ? limits.approvalLevel : 0,
     });
 
-    logger.info(`Discount check: ${product.name} — requested ${requestedDiscount}%, limit ${limits.effectiveLimit}% → ${exceedsLimit ? 'NEEDS APPROVAL' : 'OK'}`);
+    logger.info(`Discount check: ${product.name} — requested ${requestedDiscount}% effective, limit ${limits.effectiveLimit}% → ${exceedsLimit ? 'NEEDS APPROVAL' : 'OK'}`);
   }
 
   return { needsApproval, decisions, maxApprovalLevel };
@@ -118,7 +122,7 @@ async function runDiscountEngine(quotation, customer) {
           requestedDiscountPercent: decision.requestedDiscount,
           allowedDiscountPercent: decision.effectiveLimit,
           status: 'PENDING',
-          reason: `Requested ${decision.requestedDiscount}% exceeds limit of ${decision.effectiveLimit}% for ${decision.productName}`,
+          reason: `Requested ${decision.requestedDiscount}% effective discount exceeds limit of ${decision.effectiveLimit}% for ${decision.productName}`,
         });
       }
     }

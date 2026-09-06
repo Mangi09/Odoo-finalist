@@ -4,11 +4,7 @@ import { api } from "../services/api";
 import { AlertTriangle, UserCheck, ShieldAlert, RefreshCw, CheckCircle2 } from "lucide-react";
 
 export default function DealHealthPage({ onNavigate }) {
-  const [anomalies, setAnomalies] = useState([
-    { id: "1", deal: "Q-1042", customer: "Acme Corp", reason: "No reply in 5 days", flagged: "Aug 21", owner: "Sales Manager", severity: "High" },
-    { id: "2", deal: "Q-1038", customer: "Nova Retail", reason: "Budget not confirmed", flagged: "Aug 20", owner: "Finance", severity: "Medium" },
-    { id: "3", deal: "Q-1039", customer: "Beta Industries", reason: "Escalated to Manager", flagged: "Aug 18", owner: "Account Manager", severity: "Critical" },
-  ]);
+  const [anomalies, setAnomalies] = useState([]);
 
   const [metrics, setMetrics] = useState({
     stalled: "3 quotes over 7 days",
@@ -16,7 +12,7 @@ export default function DealHealthPage({ onNavigate }) {
     slippage: "1 partial delay"
   });
 
-  const [selectedDeal, setSelectedDeal] = useState(anomalies[0]);
+  const [selectedDeal, setSelectedDeal] = useState(null);
   const [assigningRep, setAssigningRep] = useState(false);
   const [selectedRep, setSelectedRep] = useState("Atharva (Lead Rep)");
   const [notification, setNotification] = useState(null);
@@ -41,37 +37,48 @@ export default function DealHealthPage({ onNavigate }) {
         if (Array.isArray(data.anomalies) && data.anomalies.length > 0) {
           const mapped = data.anomalies.map(a => ({
             id: a.id || a.deal,
-            deal: a.deal || "Q-1042",
-            customer: a.customer || "Acme Corp",
-            reason: a.description || "Inactivity flag",
+            quotationId: a.quotationId,
+            salesOrderId: a.salesOrderId,
+            deal: a.deal,
+            customer: a.customer,
+            reason: a.description,
             flagged: "Recent",
-            owner: a.severity === 'Critical' ? 'Sales Manager' : 'Account Rep',
-            severity: a.severity || 'Medium'
+            owner: a.salesperson,
+            salesperson: a.salesperson,
+            severity: a.severity
           }));
           setAnomalies(mapped);
           setSelectedDeal(mapped[0]);
         }
+        if (Array.isArray(data.anomalies) && data.anomalies.length === 0) {
+          setAnomalies([]);
+          setSelectedDeal(null);
+        }
       }
     } catch (err) {
-      console.warn("Using default deal health fallback:", err.message);
+      console.warn("Could not load deal health:", err.message);
+      setAnomalies([]);
+      setSelectedDeal(null);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleEscalate = () => {
+  const handleEscalate = async () => {
     if (!selectedDeal) return;
-    setAnomalies(prev =>
-      prev.map(item =>
-        item.deal === selectedDeal.deal
-          ? { ...item, reason: `[ESCALATED TO VP] ${item.reason}`, owner: "VP of Sales" }
-          : item
-      )
-    );
-    setNotification({
-      type: "danger",
-      text: `Deal ${selectedDeal.deal} (${selectedDeal.customer}) has been escalated to VP of Sales with highest executive priority.`
-    });
+    setLoading(true);
+    try {
+      await api.dealHealth.escalate(selectedDeal.id);
+      setNotification({
+        type: "danger",
+        text: `Deal ${selectedDeal.deal} (${selectedDeal.customer}) has been escalated to VP of Sales.`
+      });
+      await loadDealHealth();
+    } catch (err) {
+      setNotification({ type: "danger", text: `Unable to escalate deal: ${err.message}` });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleAssignRep = () => {
@@ -155,6 +162,7 @@ export default function DealHealthPage({ onNavigate }) {
                 <th style={{ width: "40px" }}>Select</th>
                 <th>Deal</th>
                 <th>Customer</th>
+                <th>Salesperson</th>
                 <th>Risk Severity</th>
                 <th>Anomaly Reason</th>
                 <th>Flagged</th>
@@ -181,6 +189,7 @@ export default function DealHealthPage({ onNavigate }) {
                   </td>
                   <td style={{ fontWeight: 600, color: "#1a365d" }}>{row.deal}</td>
                   <td>{row.customer}</td>
+                  <td>{row.salesperson || 'Unassigned'}</td>
                   <td>
                     <span className={`badge ${row.severity === 'Critical' ? 'red' : (row.severity === 'High' ? 'orange' : 'yellow')}`}>
                       {row.severity || 'Medium'}
@@ -230,7 +239,8 @@ export default function DealHealthPage({ onNavigate }) {
           </button>
           <button
             className="btn-outline"
-            onClick={() => onNavigate && onNavigate("quotation-detail", { id: selectedDeal?.deal || "Q-1042", customer: selectedDeal?.customer || "Acme Corp" })}
+            onClick={() => onNavigate && onNavigate("quotation-detail", { _id: selectedDeal?.quotationId })}
+            disabled={!selectedDeal?.quotationId}
           >
             Open Deal Details
           </button>

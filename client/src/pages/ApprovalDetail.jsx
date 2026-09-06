@@ -1,9 +1,10 @@
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import "../App.css";
 import { api } from "../services/api";
 import { CheckCircle2, AlertCircle, RotateCcw, XCircle } from "lucide-react";
 
 export default function ApprovalDetail({ data, onNavigate }) {
+  const [approvalData, setApprovalData] = useState(data);
   const [submitting, setSubmitting] = useState(false);
   const [notification, setNotification] = useState(null);
   const [revisionNote, setRevisionNote] = useState("");
@@ -11,13 +12,30 @@ export default function ApprovalDetail({ data, onNavigate }) {
   const [showRejectDialog, setShowRejectDialog] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
 
-  const quoteTitle = data ? `${data.quotation || 'Q-1042'} (${data.customer || 'Acme Corp'})` : "Q-1042 (Acme Corp)";
-  const risk = data ? (data.risk || "HIGH") : "HIGH";
+  useEffect(() => {
+    setApprovalData(data);
+    if (data?._id) {
+      api.approvals.getById(data._id)
+        .then(setApprovalData)
+        .catch(err => setNotification({ type: 'danger', message: err.message }));
+    }
+  }, [data]);
 
-  const lines = [
-    { line: "Laptop (Hardware)", given: data?.requestedDiscount || "12%", limit: data?.allowedDiscount || "15%", over: "0 pt - OK" },
-    { line: "Setup Service (Services)", given: "18%", limit: "10%", over: "8 pt OVER" },
-  ];
+  const quoteTitle = approvalData ? `${approvalData.quotation || 'Quotation'} (${approvalData.customer || 'Customer'})` : "Quotation";
+  const risk = approvalData ? (approvalData.risk || "LOW") : "LOW";
+  const formatAmount = (amount) => `₹${Number(amount || 0).toLocaleString('en-IN')}`;
+  const lines = useMemo(() => {
+    const limit = parseFloat(approvalData?.allowedDiscount) || 0;
+    const effectiveDiscount = parseFloat(approvalData?.requestedDiscount) || 0;
+    const overBy = Math.max(0, Number((effectiveDiscount - limit).toFixed(2)));
+    return (approvalData?.items?.length ? approvalData.items : []).map(item => ({
+      line: item.product,
+      given: `${effectiveDiscount}% effective (${item.discountPercent || 0}% product + ${approvalData?.globalDiscountPercent || 0}% global)`,
+      limit: approvalData?.allowedDiscount || `${limit}%`,
+      amount: formatAmount(item.lineTotal),
+      over: overBy > 0 ? `${overBy} pt OVER` : "0 pt - OK"
+    }));
+  }, [approvalData]);
 
   const [history, setHistory] = useState([
     { user: "J. Rao", action: "Submitted", date: "Aug 20", note: "Initial 12% discount" },
@@ -28,18 +46,18 @@ export default function ApprovalDetail({ data, onNavigate }) {
   const handleApprove = async () => {
     setSubmitting(true);
     try {
-      if (data?._id) {
-        await api.approvals.decide(data._id, {
+      if (approvalData?._id) {
+        await api.approvals.decide(approvalData._id, {
           status: 'APPROVED',
           reason: 'Discount exception approved by Sales Manager'
         });
       }
-      setNotification({ type: 'success', message: `Quotation ${data?.quotation || 'Q-1042'} approved successfully! Routing to fulfillment.` });
+      setNotification({ type: 'success', message: `Quotation ${approvalData?.quotation || 'Quotation'} approved successfully! Routing to fulfillment.` });
       setTimeout(() => {
         if (onNavigate) {
           onNavigate("fulfillment-list", {
-            order: data?.quotation || "Q-1042",
-            customer: data?.customer || "Acme Corp",
+            order: approvalData?.quotation || "Quotation",
+            customer: approvalData?.customer || "Customer",
             status: "Split Pending",
             warehouses: "Main + East Depot"
           });
@@ -49,8 +67,8 @@ export default function ApprovalDetail({ data, onNavigate }) {
       console.warn("Approval API notice:", err.message);
       if (onNavigate) {
         onNavigate("fulfillment-list", {
-          order: data?.quotation || "Q-1042",
-          customer: data?.customer || "Acme Corp",
+          order: approvalData?.quotation || "Quotation",
+          customer: approvalData?.customer || "Customer",
           status: "Split Pending",
           warehouses: "Main + East Depot"
         });
@@ -82,8 +100,8 @@ export default function ApprovalDetail({ data, onNavigate }) {
     const reason = rejectReason.trim() || "Margin drop exceeds threshold; cannot approve discount.";
     setSubmitting(true);
     try {
-      if (data?._id) {
-        await api.approvals.decide(data._id, {
+      if (approvalData?._id) {
+        await api.approvals.decide(approvalData._id, {
           status: 'REJECTED',
           reason
         });
@@ -155,12 +173,22 @@ export default function ApprovalDetail({ data, onNavigate }) {
           <div style={{ background: "#3182ce", color: "white", padding: "6px 12px", borderRadius: "4px", fontSize: "13px", fontWeight: "600" }}>
             Customer Tier: Gold
           </div>
-          {data?.marginImpact && (
+          {approvalData?.marginImpact && (
             <div style={{ background: "#edf2f7", color: "#2d3748", padding: "6px 12px", borderRadius: "4px", fontSize: "13px", fontWeight: "600", border: "1px solid #cbd5e0" }}>
-              Margin Impact: {data.marginImpact}
+              Margin Impact: {approvalData.marginImpact}
             </div>
           )}
         </div>
+
+        {approvalData && (
+          <div className="page-card" style={{ marginBottom: "24px" }}>
+            <div style={{ display: "flex", gap: "16px", flexWrap: "wrap" }}>
+              <div><span className="ops-label">Subtotal</span><div style={{ fontWeight: 700 }}>{formatAmount(approvalData.subtotalAmount)}</div></div>
+              <div><span className="ops-label">Global Discount</span><div style={{ fontWeight: 700 }}>-{formatAmount(approvalData.globalDiscountAmount)} ({approvalData.globalDiscountPercent || 0}%)</div></div>
+              <div><span className="ops-label">Final Total</span><div style={{ fontWeight: 700 }}>{formatAmount(approvalData.totalAmount)}</div></div>
+            </div>
+          </div>
+        )}
 
         <h2 style={{ fontSize: "16px", color: "#2b6cb0", marginBottom: "16px", fontWeight: "600" }}>
           Why This Quote Was Flagged
@@ -173,6 +201,7 @@ export default function ApprovalDetail({ data, onNavigate }) {
                 <th>Line</th>
                 <th>Discount Given</th>
                 <th>Limit Allowed</th>
+                <th>Line Total</th>
                 <th>Over By</th>
               </tr>
             </thead>
@@ -182,6 +211,7 @@ export default function ApprovalDetail({ data, onNavigate }) {
                   <td>{item.line}</td>
                   <td>{item.given}</td>
                   <td>{item.limit}</td>
+                  <td>{item.amount}</td>
                   <td style={{ color: item.over.includes('OVER') ? '#e53e3e' : '#38a169', fontWeight: 600 }}>{item.over}</td>
                 </tr>
               ))}

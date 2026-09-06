@@ -27,6 +27,20 @@ const dealHealthSchema = new mongoose.Schema(
       type: [String],
       default: [],
     },
+    escalated: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    escalatedAt: {
+      type: Date,
+      default: null,
+    },
+    escalatedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
   },
   {
     timestamps: true,

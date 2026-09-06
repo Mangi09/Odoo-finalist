@@ -3,23 +3,12 @@ import "../App.css";
 import { api } from "../services/api";
 import { RefreshCw } from "lucide-react";
 
-const initialProducts = [
-  { id: "PROD-001", name: "Laptop Pro 14", category: "Hardware", variants: "3 (size)", price: "₹1,20,000", unit: "Each", tax: "18%", status: "Active", billingType: "ONE_TIME" },
-  { id: "PROD-002", name: "Onsite Setup Service", category: "Services", variants: "-", price: "₹45,000", unit: "Each", tax: "18%", status: "Active", billingType: "ONE_TIME" },
-  { id: "PROD-003", name: "Docking Station", category: "Hardware", variants: "3 (color)", price: "₹18,000", unit: "Each", tax: "18%", status: "Active", billingType: "ONE_TIME" },
-  { id: "PROD-004", name: "Care Plan 3 years", category: "Subscription", variants: "-", price: "₹4,000/mo", unit: "Recurring", tax: "18%", status: "Active", billingType: "RECURRING" },
-  { id: "PROD-005", name: "NovaBook Ultra 16", category: "Hardware", variants: "2 (RAM)", price: "₹1,85,000", unit: "Each", tax: "18%", status: "Active", billingType: "ONE_TIME" },
-  { id: "PROD-006", name: "NovaMonitor 27", category: "Hardware", variants: "2 (color)", price: "₹32,000", unit: "Each", tax: "18%", status: "Active", billingType: "ONE_TIME" },
-  { id: "PROD-007", name: "NovaCloud Pro", category: "Cloud", variants: "-", price: "₹29,900/mo", unit: "Recurring", tax: "18%", status: "Active", billingType: "RECURRING" },
-  { id: "PROD-008", name: "SecureDesk Enterprise", category: "Software", variants: "3 (tier)", price: "₹15,000/yr", unit: "Recurring", tax: "18%", status: "Active", billingType: "RECURRING" },
-  { id: "PROD-009", name: "Extended Warranty 2yr", category: "Services", variants: "-", price: "₹9,900", unit: "Each", tax: "18%", status: "Active", billingType: "ONE_TIME" },
-  { id: "PROD-010", name: "Premium Support SLA", category: "Subscription", variants: "-", price: "₹50,000/mo", unit: "Recurring", tax: "18%", status: "Active", billingType: "RECURRING" },
-];
-
-function Products({ onNavigate, onSelectProduct }) {
-  const [products, setProducts] = useState(initialProducts);
+function Products({ onNavigate, onSelectProduct, currentUser }) {
+  const [products, setProducts] = useState([]);
   const [filterCategory, setFilterCategory] = useState("all");
   const [loading, setLoading] = useState(false);
+  const canManageProducts = ['sales_manager', 'admin'].includes(currentUser?.role);
+  const canManagePriceRules = currentUser?.role === 'admin';
 
   useEffect(() => {
     loadProducts();
@@ -29,14 +18,14 @@ function Products({ onNavigate, onSelectProduct }) {
     setLoading(true);
     try {
       const data = await api.products.getAll();
-      if (Array.isArray(data) && data.length > 0) {
+      if (Array.isArray(data)) {
         const mapped = data.map((p, idx) => ({
           _id: p._id,
           id: p.sku || `PROD-${String(idx + 1).padStart(3, '0')}`,
           name: p.name,
-          category: p.category ? p.category.charAt(0).toUpperCase() + p.category.slice(1).toLowerCase() : "Hardware",
+          category: p.category || "Hardware",
           variants: p.variants?.length ? `${p.variants.length} options` : "-",
-          price: p.basePrice ? `₹${p.basePrice.toLocaleString('en-IN')}` : "₹1,200",
+          price: p.price || `₹${(p.sellingPrice || 0).toLocaleString('en-IN')}`,
           unit: p.billingType === 'RECURRING' ? "Recurring" : "Each",
           tax: `${p.taxRate || 18}%`,
           status: p.isActive !== false ? "Active" : "Archived",
@@ -46,7 +35,8 @@ function Products({ onNavigate, onSelectProduct }) {
         setProducts(mapped);
       }
     } catch (err) {
-      console.warn("Products API fallback:", err.message);
+      console.warn("Products API notice:", err.message);
+      setProducts([]);
     } finally {
       setLoading(false);
     }
@@ -83,21 +73,25 @@ function Products({ onNavigate, onSelectProduct }) {
           </button>
         </div>
 
-        <div className="button-row page-actions">
-          <button
-            className="btn-primary"
-            onClick={() => onNavigate && onNavigate("product-detail", { isNew: true })}
-          >
-            + New Product
-          </button>
+        {canManageProducts && (
+          <div className="button-row page-actions">
+            <button
+              className="btn-primary"
+              onClick={() => onNavigate && onNavigate("product-detail", { isNew: true })}
+            >
+              + New Product
+            </button>
 
-          <button
-            className="btn-secondary"
-            onClick={() => onNavigate && onNavigate("discount-rules")}
-          >
-            Manage Price Rules
-          </button>
-        </div>
+            {canManagePriceRules && (
+              <button
+                className="btn-secondary"
+                onClick={() => onNavigate && onNavigate("discount-rules")}
+              >
+                Manage Price Rules
+              </button>
+            )}
+          </div>
+        )}
 
         <div className="metrics-container">
           <div className="metric-card">
@@ -109,7 +103,7 @@ function Products({ onNavigate, onSelectProduct }) {
           <div className="metric-card">
             <div className="metric-label">Pricelists</div>
             <div className="metric-value">3 tiers</div>
-            <div className="metric-sub">Bronze, Silver, Gold (INR / USD)</div>
+            <div className="metric-sub">Bronze, Silver, Gold (INR)</div>
           </div>
 
           <div className="metric-card">

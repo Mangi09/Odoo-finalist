@@ -1,21 +1,64 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import "../App.css";
+import { api } from "../services/api";
 
-function CustomerPortal({ onNavigate }) {
-  const [quoteStatus, setQuoteStatus] = useState("Under Negotiation");
+function CustomerPortal({ onNavigate, quote, currentUser }) {
+  const [quoteStatus, setQuoteStatus] = useState("");
+  const [quotation, setQuotation] = useState(null);
+  const [orders, setOrders] = useState([]);
+  const [adminRequests, setAdminRequests] = useState([]);
+  const [selectedOrderId, setSelectedOrderId] = useState("");
   const [counterDiscount, setCounterDiscount] = useState("");
   const [requestedDate, setRequestedDate] = useState("");
   const [lineComment, setLineComment] = useState("");
   const [notification, setNotification] = useState("");
 
-  const [comments, setComments] = useState([
-    { id: 1, line: "Extended Warranty", comment: "Can this be 15% off instead of 10%?" },
-    { id: 2, line: "Onsite Setup", comment: "Can we push this to next month?" },
-  ]);
+  const [comments, setComments] = useState([]);
 
   const ALLOWED_DISCOUNT_THRESHOLD = 12; // 12% max auto-approve threshold
+  const formatAmount = (amount) => `₹${Number(amount || 0).toLocaleString('en-IN')}`;
 
-  const handleSubmitRequest = (e) => {
+  useEffect(() => {
+    if (currentUser?.role === 'admin') {
+      api.portal.getAdminRequests()
+        .then(data => setAdminRequests(Array.isArray(data) ? data : []))
+        .catch(err => setNotification(`Unable to load customer requests: ${err.message}`));
+      return;
+    }
+
+    const loadOwnOrders = async () => {
+      try {
+        const ownOrders = await api.salesOrders.getAll();
+        setOrders(ownOrders);
+        const selected = ownOrders.find(order => order._id === quote?._id || order.id === quote?.id) || ownOrders[0];
+        if (!selected) return;
+        setSelectedOrderId(selected._id);
+        const detail = await api.quotations.getById(selected.quotationId);
+        setQuotation(detail);
+        setQuoteStatus(detail.stage || selected.status);
+        setComments((detail.items || []).map(item => ({ id: item._id, line: item.product, comment: "No comments yet" })));
+      } catch (err) {
+        setNotification(`Unable to load your quotation: ${err.message}`);
+      }
+    };
+    loadOwnOrders();
+  }, [quote, currentUser?.role]);
+
+  const handleOrderChange = async (event) => {
+    const order = orders.find(item => item._id === event.target.value);
+    setSelectedOrderId(event.target.value);
+    if (!order) return;
+    try {
+      const detail = await api.quotations.getById(order.quotationId);
+      setQuotation(detail);
+      setQuoteStatus(detail.stage || order.status);
+      setComments((detail.items || []).map(item => ({ id: item._id, line: item.product, comment: "No comments yet" })));
+    } catch (err) {
+      setNotification(`Unable to load order quotation: ${err.message}`);
+    }
+  };
+
+  const handleSubmitRequest = async (e) => {
     e.preventDefault();
     if (!counterDiscount && !requestedDate && !lineComment) {
       alert("Please enter a counter discount %, requested delivery date, or comment.");
@@ -34,6 +77,22 @@ function CustomerPortal({ onNavigate }) {
       setComments(newComments);
     }
 
+    if (!quotation || !selectedOrderId) return;
+    try {
+      const result = await api.portal.negotiate(quotation._id, {
+        orderId: selectedOrderId,
+        counterDiscount: discountVal || 0,
+        requestedDate,
+        lineComment
+      });
+      const nextStatus = result?.quotation?.status || (!isNaN(discountVal) && discountVal > ALLOWED_DISCOUNT_THRESHOLD ? "RE_APPROVAL" : "NEGOTIATION");
+      setQuoteStatus(nextStatus);
+      setNotification(result?.notification || "Negotiation request submitted.");
+    } catch (err) {
+      setNotification(`Unable to submit request: ${err.message}`);
+      return;
+    }
+
     if (!isNaN(discountVal) && discountVal > ALLOWED_DISCOUNT_THRESHOLD) {
       // Exceeds threshold -> Triggers re-approval workflow (Screen 6)
       setQuoteStatus("Pending Re-Approval");
@@ -47,26 +106,61 @@ function CustomerPortal({ onNavigate }) {
       setQuoteStatus("Approved - Ready for Confirmation");
       setNotification(
         `Negotiation request accepted. Terms updated to ${discountVal || 10}% discount. ` +
-        `You can now confirm the quotation.`
+        `Your request has been recorded for review.`
       );
-    }
-  };
-
-  const handleConfirmQuotation = () => {
-    if (quoteStatus === "Pending Re-Approval") {
-      alert("Quotation is currently under internal re-approval. Please wait for sales manager approval.");
-      return;
-    }
-
-    setQuoteStatus("CONFIRMED");
-    setNotification("Quotation Q-1042 has been successfully CONFIRMED! Moving to Fulfillment & Invoicing.");
-    if (onNavigate) {
-      setTimeout(() => onNavigate("orders", { id: "Q-1042", customer: "Acme Corp", status: "Confirmed" }), 500);
     }
   };
 
   return (
     <main className="content">
+      {currentUser?.role === 'admin' ? (
+        <>
+          <h1>Customer Portal Requests</h1>
+          <p className="subtitle">Customer negotiation/change requests mapped to their related orders.</p>
+
+          {notification && (
+            <div className="info-box" style={{ marginTop: "14px", marginBottom: "14px" }}>
+              {notification}
+            </div>
+          )}
+
+          <div className="table-wrapper" style={{ marginTop: "16px" }}>
+            <table>
+              <thead>
+                <tr>
+                  <th>Customer Name</th>
+                  <th>Order Number</th>
+                  <th>Request</th>
+                  <th>Status</th>
+                  <th>Created</th>
+                </tr>
+              </thead>
+              <tbody>
+                {adminRequests.length > 0 ? adminRequests.map(request => (
+                  <tr key={request._id}>
+                    <td style={{ fontWeight: 600, color: "#1a365d" }}>{request.customerName}</td>
+                    <td>{request.orderNumber}</td>
+                    <td>{request.request}</td>
+                    <td>
+                      <span className={`badge ${request.status === 'REJECTED' ? 'red' : (request.status === 'APPROVED' ? 'green' : 'orange')}`}>
+                        {request.status}
+                      </span>
+                    </td>
+                    <td>{request.createdAt ? new Date(request.createdAt).toLocaleDateString() : '-'}</td>
+                  </tr>
+                )) : (
+                  <tr>
+                    <td colSpan={5} style={{ textAlign: "center", padding: "20px", color: "#718096" }}>
+                      No customer requests found.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </>
+      ) : (
+        <>
         <h1>Customer Portal Negotiation Screen</h1>
 
         <p className="subtitle">
@@ -95,6 +189,25 @@ function CustomerPortal({ onNavigate }) {
           </div>
         )}
 
+        {quotation && (
+          <div className="page-card" style={{ marginTop: "16px" }}>
+            <div style={{ display: "flex", gap: "16px", flexWrap: "wrap" }}>
+              <div style={{ minWidth: "160px" }}>
+                <div style={{ fontSize: "12px", color: "#64748b" }}>Subtotal</div>
+                <strong>{formatAmount(quotation.subtotalAmount || quotation.totalAmount)}</strong>
+              </div>
+              <div style={{ minWidth: "160px" }}>
+                <div style={{ fontSize: "12px", color: "#64748b" }}>Global Discount</div>
+                <strong>-{formatAmount(quotation.globalDiscountAmount)}</strong>
+              </div>
+              <div style={{ minWidth: "160px" }}>
+                <div style={{ fontSize: "12px", color: "#64748b" }}>Final Total</div>
+                <strong>{formatAmount(quotation.totalAmount)}</strong>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Customer Comments Table */}
         <div className="table-wrapper" style={{ marginTop: "16px" }}>
           <table>
@@ -118,6 +231,19 @@ function CustomerPortal({ onNavigate }) {
         {/* Customer Input Section */}
         <form onSubmit={handleSubmitRequest} style={{ marginTop: "24px" }}>
           <div style={{ display: "flex", gap: "20px", flexWrap: "wrap", marginBottom: "18px" }}>
+            <div style={{ flex: "1", minWidth: "240px" }}>
+              <label style={{ display: "block", fontSize: "13px", color: "#555", marginBottom: "6px" }}>
+                Order Number
+              </label>
+              <select
+                value={selectedOrderId}
+                onChange={handleOrderChange}
+                style={{ width: "100%", height: "45px", border: "1px solid #555", borderRadius: "9px", padding: "0 14px", fontSize: "13px", outline: "none" }}
+              >
+                <option value="">Select an order...</option>
+                {orders.map(order => <option key={order._id} value={order._id}>{order.orderNumber || order.id}</option>)}
+              </select>
+            </div>
             <div style={{ flex: "1", minWidth: "240px" }}>
               <label style={{ display: "block", fontSize: "13px", color: "#555", marginBottom: "6px" }}>
                 Counter Discount %
@@ -201,30 +327,6 @@ function CustomerPortal({ onNavigate }) {
             >
               Submit Request
             </button>
-
-            <button
-              type="button"
-              onClick={handleConfirmQuotation}
-              disabled={quoteStatus === "Pending Re-Approval" || quoteStatus === "CONFIRMED"}
-              style={{
-                height: "40px",
-                padding: "0 20px",
-                borderRadius: "10px",
-                border: "1px solid #222",
-                background:
-                  quoteStatus === "Pending Re-Approval" || quoteStatus === "CONFIRMED"
-                    ? "#a5d6a7"
-                    : "#299b45",
-                color: "#ffffff",
-                fontSize: "12px",
-                cursor:
-                  quoteStatus === "Pending Re-Approval" || quoteStatus === "CONFIRMED"
-                    ? "not-allowed"
-                    : "pointer",
-              }}
-            >
-              {quoteStatus === "CONFIRMED" ? "Quotation Confirmed" : "Confirm Quotation"}
-            </button>
           </div>
         </form>
 
@@ -232,6 +334,8 @@ function CustomerPortal({ onNavigate }) {
         <div className="info-box" style={{ marginTop: "24px" }}>
           If final terms exceed thresholds, the quote automatically re-enters approval (Screen 6).
         </div>
+        </>
+      )}
       </main>
   );
 }

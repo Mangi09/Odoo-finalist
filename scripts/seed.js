@@ -25,16 +25,45 @@ const {
   SalesOrderHistory,
 } = require('../models');
 
-const { createSalesOrderFromQuotation } = require('../services/salesOrderService');
+const companyPrefixes = ['Nova', 'Apex', 'Vertex', 'BluePeak', 'Quantum', 'Sterling', 'Metro', 'Orion', 'Summit', 'Pioneer', 'Nexus', 'Evergreen'];
+const companySuffixes = ['Systems', 'Retail', 'Logistics', 'Foods', 'Pharma', 'Industries', 'Networks', 'Labs', 'Technologies', 'Holdings'];
+const contactNames = ['Anika Rao', 'Rohan Mehta', 'Priya Sharma', 'Kabir Sethi', 'Neha Iyer', 'Arjun Kapoor', 'Meera Nair', 'Vikram Jain'];
+const quoteStatuses = ['DRAFT', 'PENDING_APPROVAL', 'APPROVED', 'SENT_TO_CUSTOMER', 'NEGOTIATION', 'RE_APPROVAL', 'ACCEPTED', 'REJECTED', 'CANCELLED'];
+const orderStatuses = ['CONFIRMED', 'IN_FULFILLMENT', 'PARTIALLY_FULFILLED', 'BILLED', 'PAID', 'CLOSED'];
+
+function pick(arr, idx) {
+  return arr[idx % arr.length];
+}
+
+function daysAgo(days) {
+  return new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+}
+
+function daysFromNow(days) {
+  return new Date(Date.now() + days * 24 * 60 * 60 * 1000);
+}
+
+function buildItem(product, idx) {
+  const qty = (idx % 6) + 1;
+  const discountPercent = [0, 3, 5, 8, 12, 15, 18][idx % 7];
+  const unitPrice = product.sellingPrice;
+  const discountedUnit = unitPrice * (1 - discountPercent / 100);
+  return {
+    productId: product._id,
+    qty,
+    unitPrice,
+    discountPercent,
+    lineTotal: Math.round(discountedUnit * qty),
+    lineMargin: Math.round((discountedUnit - product.cost) * qty),
+    isRecommendation: idx % 5 === 0,
+  };
+}
 
 async function seed() {
   const connStr = process.env.MONGO_URI || 'mongodb://localhost:27017/odoo';
   console.log(`Connecting to MongoDB at ${connStr}...`);
   await mongoose.connect(connStr);
-  console.log('Connected successfully!');
 
-  // Clear existing collections
-  console.log('Clearing existing collections...');
   const collections = [
     User, CustomerTier, Customer, Category, Product, DiscountRule,
     Quotation, Approval, Recommendation, Warehouse, Inventory,
@@ -42,364 +71,357 @@ async function seed() {
     Payment, DealHealth, QuotationHistory, SalesOrder, SalesOrderHistory
   ];
 
-  for (const col of collections) {
-    try {
-      await col.deleteMany({});
-    } catch (e) {
-      // ignore
+  console.log('Clearing existing collections...');
+  for (const col of collections) await col.deleteMany({});
+
+  const passwordHash = await bcrypt.hash('password123', 10);
+  const [bronze, silver, gold] = await CustomerTier.create([
+    { name: 'Bronze', maxDiscountPercent: 5 },
+    { name: 'Silver', maxDiscountPercent: 10 },
+    { name: 'Gold', maxDiscountPercent: 15 },
+  ]);
+
+  const categories = await Category.create([
+    { name: 'Hardware' },
+    { name: 'Services' },
+    { name: 'Subscription' },
+    { name: 'Cloud' },
+    { name: 'Software' },
+    { name: 'Networking' },
+  ]);
+  const categoryByName = Object.fromEntries(categories.map(c => [c.name, c]));
+
+  const products = await Product.create([
+    { name: 'Laptop Pro 14', categoryId: categoryByName.Hardware._id, cost: 900, sellingPrice: 1200, billingType: 'ONE_TIME' },
+    { name: 'NovaBook Ultra 16', categoryId: categoryByName.Hardware._id, cost: 1400, sellingPrice: 1850, billingType: 'ONE_TIME' },
+    { name: 'Docking Station', categoryId: categoryByName.Hardware._id, cost: 110, sellingPrice: 180, billingType: 'ONE_TIME' },
+    { name: 'NovaMonitor 27', categoryId: categoryByName.Hardware._id, cost: 210, sellingPrice: 320, billingType: 'ONE_TIME' },
+    { name: 'NovaSwitch 24-Port', categoryId: categoryByName.Networking._id, cost: 250, sellingPrice: 380, billingType: 'ONE_TIME' },
+    { name: 'SecureRouter Edge', categoryId: categoryByName.Networking._id, cost: 420, sellingPrice: 680, billingType: 'ONE_TIME' },
+    { name: 'Enterprise Analytics Suite', categoryId: categoryByName.Software._id, cost: 1800, sellingPrice: 3500, billingType: 'ONE_TIME' },
+    { name: 'Identity Shield License', categoryId: categoryByName.Software._id, cost: 85, sellingPrice: 190, billingType: 'RECURRING', frequency: 'YEARLY' },
+    { name: 'NovaCloud Pro', categoryId: categoryByName.Cloud._id, cost: 120, sellingPrice: 299, billingType: 'RECURRING', frequency: 'MONTHLY' },
+    { name: 'Managed Backup Vault', categoryId: categoryByName.Cloud._id, cost: 80, sellingPrice: 210, billingType: 'RECURRING', frequency: 'MONTHLY' },
+    { name: 'Onsite Setup Service', categoryId: categoryByName.Services._id, cost: 200, sellingPrice: 450, billingType: 'ONE_TIME' },
+    { name: 'Migration Workshop', categoryId: categoryByName.Services._id, cost: 650, sellingPrice: 1200, billingType: 'ONE_TIME' },
+    { name: 'Care Plan 3 years', categoryId: categoryByName.Subscription._id, cost: 15, sellingPrice: 40, billingType: 'RECURRING', frequency: 'MONTHLY' },
+    { name: 'Premium Support SLA', categoryId: categoryByName.Subscription._id, cost: 200, sellingPrice: 500, billingType: 'RECURRING', frequency: 'MONTHLY' },
+    { name: 'Quarterly Success Plan', categoryId: categoryByName.Subscription._id, cost: 420, sellingPrice: 900, billingType: 'RECURRING', frequency: 'QUARTERLY' },
+    { name: 'Extended Warranty 2yr', categoryId: categoryByName.Services._id, cost: 40, sellingPrice: 99, billingType: 'ONE_TIME' },
+  ]);
+
+  await DiscountRule.create([
+    ...[bronze, silver, gold].flatMap((tier, tierIdx) =>
+      categories.map((category, catIdx) => ({
+        tierId: tier._id,
+        categoryId: category._id,
+        maxDiscountPercent: [5, 10, 15][tierIdx] + (catIdx % 2 === 0 ? 0 : 3),
+        approvalLevel: tierIdx === 2 ? 2 : 1,
+        active: true,
+      }))
+    )
+  ]);
+
+  const warehouses = await Warehouse.create([
+    { name: 'Mumbai Central DC', location: 'Mumbai, MH', priority: 1 },
+    { name: 'Bengaluru Tech Hub', location: 'Bengaluru, KA', priority: 2 },
+    { name: 'Delhi NCR Fulfillment', location: 'Gurugram, HR', priority: 3 },
+    { name: 'Pune Returns Annex', location: 'Pune, MH', priority: 4 },
+    { name: 'Hyderabad Cloud Depot', location: 'Hyderabad, TS', priority: 5 },
+  ]);
+
+  const physicalProducts = products.filter(p => p.billingType === 'ONE_TIME');
+  for (const warehouse of warehouses) {
+    for (const product of physicalProducts) {
+      await Inventory.create({
+        warehouseId: warehouse._id,
+        productId: product._id,
+        availableQty: 80 + ((warehouse.priority + product.name.length) % 9) * 12,
+        reservedQty: (warehouse.priority + product.name.length) % 8,
+      });
     }
   }
 
-  console.log('1. Seeding Customer Tiers...');
-  const bronze = await CustomerTier.create({ name: 'Bronze', maxDiscountPercent: 5 });
-  const silver = await CustomerTier.create({ name: 'Silver', maxDiscountPercent: 10 });
-  const gold = await CustomerTier.create({ name: 'Gold', maxDiscountPercent: 15 });
+  const users = await User.create([
+    { name: 'Admin User', email: 'admin@dealflow360.com', passwordHash, role: 'admin' },
+    { name: 'M. Shah', email: 'manager@dealflow360.com', passwordHash, role: 'sales_manager' },
+    { name: 'Dwithi Poojary', email: 'dwithi.manager@dealflow360.com', passwordHash, role: 'sales_manager' },
+    { name: 'Finance Ops', email: 'finance@dealflow360.com', passwordHash, role: 'finance_ops' },
+    { name: 'Atharva K.', email: 'atharva@dealflow360.com', passwordHash, role: 'salesperson' },
+    { name: 'Vibha M.', email: 'vibha@dealflow360.com', passwordHash, role: 'salesperson' },
+    { name: 'Rhea Menon', email: 'rhea@dealflow360.com', passwordHash, role: 'salesperson' },
+    { name: 'Kunal Desai', email: 'kunal@dealflow360.com', passwordHash, role: 'salesperson' },
+    { name: 'Sara Fernandes', email: 'sara@dealflow360.com', passwordHash, role: 'salesperson' },
+  ]);
+  const admin = users.find(u => u.role === 'admin');
+  const managers = users.filter(u => u.role === 'sales_manager');
+  const sellers = users.filter(u => ['salesperson', 'sales_manager'].includes(u.role));
 
-  console.log('2. Seeding Categories...');
-  const catHardware = await Category.create({ name: 'Hardware', description: 'Computing, displays and peripherals' });
-  const catServices = await Category.create({ name: 'Services', description: 'Implementation and setup services' });
-  const catSubscription = await Category.create({ name: 'Subscription', description: 'Recurring care and support contracts' });
-  const catCloud = await Category.create({ name: 'Cloud', description: 'Cloud infrastructure and hosting services' });
-  const catSoftware = await Category.create({ name: 'Software', description: 'Enterprise desktop and server licenses' });
-  const catNetworking = await Category.create({ name: 'Networking', description: 'Switches, routers and connectivity' });
-
-  console.log('3. Seeding Products...');
-  const pLaptop14 = await Product.create({
-    name: 'Laptop Pro 14',
-    categoryId: catHardware._id,
-    cost: 900,
-    sellingPrice: 1200,
-    billingType: 'ONE_TIME',
-    isActive: true
-  });
-  const pSetup = await Product.create({
-    name: 'Onsite Setup Service',
-    categoryId: catServices._id,
-    cost: 200,
-    sellingPrice: 450,
-    billingType: 'ONE_TIME',
-    isActive: true
-  });
-  const pDock = await Product.create({
-    name: 'Docking Station',
-    categoryId: catHardware._id,
-    cost: 110,
-    sellingPrice: 180,
-    billingType: 'ONE_TIME',
-    isActive: true
-  });
-  const pCarePlan = await Product.create({
-    name: 'Care Plan 3 years',
-    categoryId: catSubscription._id,
-    cost: 15,
-    sellingPrice: 40,
-    billingType: 'RECURRING',
-    frequency: 'MONTHLY',
-    isActive: true
-  });
-  const pLaptop16 = await Product.create({
-    name: 'NovaBook Ultra 16',
-    categoryId: catHardware._id,
-    cost: 1400,
-    sellingPrice: 1850,
-    billingType: 'ONE_TIME',
-    isActive: true
-  });
-  const pMonitor = await Product.create({
-    name: 'NovaMonitor 27',
-    categoryId: catHardware._id,
-    cost: 210,
-    sellingPrice: 320,
-    billingType: 'ONE_TIME',
-    isActive: true
-  });
-  const pCloud = await Product.create({
-    name: 'NovaCloud Pro',
-    categoryId: catCloud._id,
-    cost: 120,
-    sellingPrice: 299,
-    billingType: 'RECURRING',
-    frequency: 'MONTHLY',
-    isActive: true
-  });
-  const pSecureDesk = await Product.create({
-    name: 'SecureDesk Enterprise',
-    categoryId: catSoftware._id,
-    cost: 60,
-    sellingPrice: 150,
-    billingType: 'RECURRING',
-    frequency: 'YEARLY',
-    isActive: true
-  });
-  const pWarranty = await Product.create({
-    name: 'Extended Warranty 2yr',
-    categoryId: catServices._id,
-    cost: 40,
-    sellingPrice: 99,
-    billingType: 'ONE_TIME',
-    isActive: true
-  });
-  const pSupportSLA = await Product.create({
-    name: 'Premium Support SLA',
-    categoryId: catSubscription._id,
-    cost: 200,
-    sellingPrice: 500,
-    billingType: 'RECURRING',
-    frequency: 'MONTHLY',
-    isActive: true
-  });
-  const pSwitch = await Product.create({
-    name: 'NovaSwitch 24-Port',
-    categoryId: catNetworking._id,
-    cost: 250,
-    sellingPrice: 380,
-    billingType: 'ONE_TIME',
-    isActive: true
-  });
-  const pAnalytics = await Product.create({
-    name: 'Enterprise Analytics Suite',
-    categoryId: catSoftware._id,
-    cost: 1800,
-    sellingPrice: 3500,
-    billingType: 'ONE_TIME',
-    isActive: true
-  });
-
-  console.log('4. Seeding Discount Rules...');
-  await DiscountRule.create({ tierId: bronze._id, categoryId: catHardware._id, maxDiscountPercent: 5, approvalLevel: 1 });
-  await DiscountRule.create({ tierId: silver._id, categoryId: catHardware._id, maxDiscountPercent: 10, approvalLevel: 1 });
-  await DiscountRule.create({ tierId: gold._id, categoryId: catHardware._id, maxDiscountPercent: 12, approvalLevel: 2 });
-
-  await DiscountRule.create({ tierId: bronze._id, categoryId: catServices._id, maxDiscountPercent: 10, approvalLevel: 1 });
-  await DiscountRule.create({ tierId: silver._id, categoryId: catServices._id, maxDiscountPercent: 15, approvalLevel: 1 });
-  await DiscountRule.create({ tierId: gold._id, categoryId: catServices._id, maxDiscountPercent: 20, approvalLevel: 2 });
-
-  await DiscountRule.create({ tierId: gold._id, categoryId: catSoftware._id, maxDiscountPercent: 15, approvalLevel: 2 });
-
-  console.log('5. Seeding Warehouses & Inventory...');
-  const whMumbai = await Warehouse.create({ name: 'Mumbai Central DC', location: 'Mumbai, MH', priority: 1 });
-  const whBlr = await Warehouse.create({ name: 'Bengaluru Tech Hub', location: 'Bengaluru, KA', priority: 2 });
-  const whDelhi = await Warehouse.create({ name: 'Delhi NCR Fulfillment', location: 'Gurugram, HR', priority: 3 });
-
-  const hardwareProducts = [pLaptop14, pDock, pLaptop16, pMonitor, pSwitch];
-  for (const hp of hardwareProducts) {
-    await Inventory.create({ warehouseId: whMumbai._id, productId: hp._id, availableQty: 50, reservedQty: 5 });
-    await Inventory.create({ warehouseId: whBlr._id, productId: hp._id, availableQty: 35, reservedQty: 0 });
-    await Inventory.create({ warehouseId: whDelhi._id, productId: hp._id, availableQty: 25, reservedQty: 0 });
+  const tiers = [bronze, silver, gold];
+  const customers = [];
+  for (let i = 0; i < 96; i += 1) {
+    const companyName = `${pick(companyPrefixes, i)} ${pick(companySuffixes, i * 3)}`;
+    const customer = await Customer.create({
+      companyName: `${companyName} ${String(i + 1).padStart(2, '0')}`,
+      contactName: pick(contactNames, i),
+      email: `buyer${i + 1}@${companyName.toLowerCase().replace(/\s+/g, '')}.com`,
+      phone: `+91 98${String(10000000 + i * 739).slice(0, 8)}`,
+      tierId: pick(tiers, i)._id,
+      salespersonId: pick(sellers, i)._id,
+      portalEnabled: i % 3 !== 0,
+      createdAt: daysAgo(140 - (i % 80)),
+    });
+    customers.push(customer);
   }
 
-  console.log('6. Seeding Users...');
-  const hashedPassword = await bcrypt.hash('password123', 10);
+  const portalCustomers = customers.filter(c => c.portalEnabled).slice(0, 30);
+  for (let i = 0; i < portalCustomers.length; i += 1) {
+    await User.create({
+      name: portalCustomers[i].contactName,
+      email: `customer${i + 1}@dealflow360.com`,
+      passwordHash,
+      role: 'customer',
+      customerId: portalCustomers[i]._id,
+    });
+  }
 
-  const uAdmin = await User.create({
-    name: 'Admin User',
-    email: 'admin@dealflow360.com',
-    passwordHash: hashedPassword,
-    role: 'admin'
-  });
-  const uManager = await User.create({
-    name: 'M. Shah (Sales Manager)',
-    email: 'manager@dealflow360.com',
-    passwordHash: hashedPassword,
-    role: 'sales_manager'
-  });
-  const uAtharva = await User.create({
-    name: 'Atharva K.',
-    email: 'atharva@dealflow360.com',
-    passwordHash: hashedPassword,
-    role: 'salesperson'
-  });
-
-  console.log('7. Seeding Customers...');
-  const cAcme = await Customer.create({
-    companyName: 'Acme Corporation',
-    contactName: 'John Carter',
-    email: 'john.carter@acmecorp.com',
-    phone: '+91 98765 43210',
-    tierId: gold._id,
-    portalEnabled: true
-  });
-  const cTechNova = await Customer.create({
-    companyName: 'TechNova Solutions',
-    contactName: 'Priya Sharma',
-    email: 'priya@technova.com',
-    phone: '+91 98111 22334',
-    tierId: silver._id,
-    portalEnabled: true
-  });
-  const cVertex = await Customer.create({
-    companyName: 'Vertex Enterprises',
-    contactName: 'David Lee',
-    email: 'david@vertex.com',
-    phone: '+91 99222 33445',
-    tierId: gold._id,
-    portalEnabled: false
-  });
-  const cGlobal = await Customer.create({
-    companyName: 'Global Supplies',
-    contactName: 'Sanjay Mehta',
-    email: 'sanjay@globalsupplies.com',
-    phone: '+91 97333 44556',
-    tierId: bronze._id,
-    portalEnabled: false
-  });
-
-  console.log('8. Seeding Multi-Item Demo Quotations...');
-
-  // Quotation 1: Acme Corp - High Discount needing approval
-  const q1Items = [
-    {
-      productId: pLaptop14._id,
-      qty: 2,
-      unitPrice: 1200,
-      discountPercent: 18, // Gold limit is 12% -> Triggers approval!
-      lineTotal: 1200 * 2 * (1 - 0.18),
-      lineMargin: (1200 * 0.82 - 900) * 2,
-      isRecommendation: false
-    },
-    {
-      productId: pDock._id,
-      qty: 2,
-      unitPrice: 180,
-      discountPercent: 10,
-      lineTotal: 180 * 2 * 0.9,
-      lineMargin: (180 * 0.9 - 110) * 2,
-      isRecommendation: true
-    },
-    {
-      productId: pSupportSLA._id,
-      qty: 1,
-      unitPrice: 500,
-      discountPercent: 0,
-      lineTotal: 500,
-      lineMargin: 300,
-      isRecommendation: true
+  const quotations = [];
+  for (let i = 0; i < 260; i += 1) {
+    const customer = pick(customers, i * 5);
+    const status = pick(quoteStatuses, i);
+    const lineCount = 2 + (i % 3);
+    const items = [];
+    for (let j = 0; j < lineCount; j += 1) {
+      items.push(buildItem(pick(products, i + j * 4), i + j));
     }
-  ];
-  const q1TotalAmount = q1Items.reduce((s, i) => s + i.lineTotal, 0);
-  const q1TotalMargin = q1Items.reduce((s, i) => s + i.lineMargin, 0);
+    const totalAmount = items.reduce((sum, item) => sum + item.lineTotal, 0);
+    const totalMargin = items.reduce((sum, item) => sum + item.lineMargin, 0);
+    const quote = await Quotation.create({
+      customerId: customer._id,
+      salespersonId: customer.salespersonId,
+      title: `${customer.companyName} ${pick(['Workspace Refresh', 'Cloud Expansion', 'Security Rollout', 'Support Renewal'], i)}`,
+      status,
+      items,
+      totalAmount,
+      totalMargin,
+      riskScore: (i * 13) % 100,
+      isArchived: i % 37 === 0,
+      archivedAt: i % 37 === 0 ? daysAgo(i % 20) : null,
+      archivedBy: i % 37 === 0 ? admin._id : null,
+      createdAt: daysAgo(120 - (i % 90)),
+      updatedAt: daysAgo(20 - (i % 20)),
+    });
+    quotations.push(quote);
 
-  const qAcme = await Quotation.create({
-    customerId: cAcme._id,
-    salespersonId: uAtharva._id,
-    title: 'Enterprise Software & Hardware Package',
-    status: 'PENDING_APPROVAL',
-    items: q1Items,
-    totalAmount: q1TotalAmount,
-    totalMargin: q1TotalMargin,
-    riskScore: 78
-  });
-
-  await QuotationHistory.create({
-    quotationId: qAcme._id,
-    actorId: uAtharva._id,
-    action: 'Quotation created in DRAFT',
-    oldValue: null,
-    newValue: 'DRAFT'
-  });
-  await QuotationHistory.create({
-    quotationId: qAcme._id,
-    actorId: uAtharva._id,
-    action: 'Submitted for approval (18% discount requested on Laptop Pro 14)',
-    oldValue: 'DRAFT',
-    newValue: 'PENDING_APPROVAL'
-  });
-
-  await Approval.create({
-    quotationId: qAcme._id,
-    quotationItemId: qAcme.items[0]._id,
-    approverId: uManager._id,
-    level: 2,
-    requestedDiscountPercent: 18,
-    allowedDiscountPercent: 12,
-    status: 'PENDING',
-    reason: 'Requested 18% exceeds limit of 12% for Laptop Pro 14'
-  });
-
-  await DealHealth.create({
-    quotationId: qAcme._id,
-    score: 48,
-    status: 'AT_RISK',
-    riskFactors: ['1 pending approval(s)', 'Discount exceeds standard Gold tier by 6%']
-  });
-
-  // Quotation 2: Multi-Item Quotation with 3+ Line Items from 3 Categories -> Converted to SalesOrder!
-  console.log('9. Progressing Demo Quotation into SalesOrder...');
-  const multiItems = [
-    {
-      productId: pLaptop16._id, // Hardware
-      qty: 5,
-      unitPrice: 1850,
-      discountPercent: 10,
-      lineTotal: Math.round(1850 * 5 * 0.9),
-      lineMargin: Math.round((1850 * 0.9 - 1400) * 5),
-      isRecommendation: false
-    },
-    {
-      productId: pAnalytics._id, // Software
-      qty: 1,
-      unitPrice: 3500,
-      discountPercent: 5,
-      lineTotal: Math.round(3500 * 0.95),
-      lineMargin: Math.round(3500 * 0.95 - 1800),
-      isRecommendation: false
-    },
-    {
-      productId: pSupportSLA._id, // Subscription Service
-      qty: 1,
-      unitPrice: 500,
-      discountPercent: 0,
-      lineTotal: 500,
-      lineMargin: 300,
-      isRecommendation: true
+    await QuotationHistory.create({
+      quotationId: quote._id,
+      actorId: customer.salespersonId,
+      action: 'Quotation created in DRAFT',
+      oldValue: null,
+      newValue: 'DRAFT',
+      createdAt: quote.createdAt,
+    });
+    if (status !== 'DRAFT') {
+      await QuotationHistory.create({
+        quotationId: quote._id,
+        actorId: customer.salespersonId,
+        action: `Quotation moved to ${status}`,
+        oldValue: 'DRAFT',
+        newValue: status,
+        createdAt: daysAgo(90 - (i % 70)),
+      });
     }
-  ];
 
-  const qMultiTotalAmount = multiItems.reduce((s, i) => s + i.lineTotal, 0);
-  const qMultiTotalMargin = multiItems.reduce((s, i) => s + i.lineMargin, 0);
+    if (['PENDING_APPROVAL', 'RE_APPROVAL', 'REJECTED'].includes(status) || i % 6 === 0) {
+      await Approval.create({
+        quotationId: quote._id,
+        quotationItemId: quote.items[0]._id,
+        approverId: pick(managers, i)._id,
+        level: quote.items[0].discountPercent > 12 ? 2 : 1,
+        requestedDiscountPercent: quote.items[0].discountPercent,
+        allowedDiscountPercent: pick(tiers, i).maxDiscountPercent,
+        status: status === 'REJECTED' ? 'REJECTED' : (i % 8 === 0 ? 'APPROVED' : 'PENDING'),
+        reason: quote.items[0].discountPercent > 12 ? 'Discount exceeds tier threshold' : 'Standard manager review',
+        decidedAt: status === 'REJECTED' || i % 8 === 0 ? daysAgo(i % 18) : null,
+      });
+    }
 
-  const qVertex = await Quotation.create({
-    customerId: cVertex._id,
-    salespersonId: uAtharva._id,
-    title: 'Enterprise Multi-Category Tech Stack Package',
-    status: 'APPROVED',
-    items: multiItems,
-    totalAmount: qMultiTotalAmount,
-    totalMargin: qMultiTotalMargin,
-    riskScore: 10
-  });
+    if (['SENT_TO_CUSTOMER', 'NEGOTIATION', 'RE_APPROVAL'].includes(status) || i % 7 === 0) {
+      await Negotiation.create({
+        quotationId: quote._id,
+        customerId: customer._id,
+        type: i % 2 === 0 ? 'COUNTER_OFFER' : 'CHANGE_REQUEST',
+        message: pick(['Requesting rollout in two phases', 'Need extended payment terms', 'Can we add support coverage?', 'Please revise hardware quantities'], i),
+        status: i % 5 === 0 ? 'APPROVED' : 'PENDING',
+        items: [{
+          quotationItemId: quote.items[0]._id,
+          productId: quote.items[0].productId,
+          requestedQty: quote.items[0].qty + 1,
+          requestedDiscountPercent: Math.min(quote.items[0].discountPercent + 2, 25),
+          action: 'MODIFY',
+        }],
+      });
+    }
 
-  await QuotationHistory.create({
-    quotationId: qVertex._id,
-    actorId: uAtharva._id,
-    action: 'Multi-item quotation approved by manager',
-    oldValue: 'PENDING_APPROVAL',
-    newValue: 'APPROVED'
-  });
+    const healthScore = 35 + ((i * 17) % 65);
+    await DealHealth.create({
+      quotationId: quote._id,
+      score: healthScore,
+      status: healthScore < 45 ? 'CRITICAL' : healthScore < 70 ? 'AT_RISK' : 'HEALTHY',
+      riskFactors: healthScore < 70 ? [status === 'PENDING_APPROVAL' ? 'Approval pending' : 'Low recent activity', 'Margin or timing needs review'] : [],
+    });
 
-  // Convert Quotation into SalesOrder via salesOrderService!
-  const seededSalesOrder = await createSalesOrderFromQuotation(qVertex, uAtharva._id);
+    if (i % 4 === 0) {
+      await Recommendation.create({
+        quotationId: quote._id,
+        productId: pick(products, i + 3)._id,
+        type: i % 8 === 0 ? 'UPSELL' : 'CROSS_SELL',
+        reason: 'Frequently attached to similar customer deployments',
+        marginImpact: 12 + (i % 20),
+        status: i % 6 === 0 ? 'ACCEPTED' : 'PENDING',
+      });
+    }
+  }
 
-  console.log('\n=========================================');
-  console.log(' DealFlow360 Database Seeded Successfully!');
-  console.log('=========================================');
-  console.log('Demo Users:');
+  const orderQuotes = quotations.filter(q => !q.isArchived).slice(0, 225);
+  const recurringProducts = products.filter(p => p.billingType === 'RECURRING');
+
+  for (let i = 0; i < orderQuotes.length; i += 1) {
+    const quote = orderQuotes[i];
+    if (quote.status !== 'ACCEPTED') {
+      quote.status = 'ACCEPTED';
+      await quote.save();
+    }
+    const order = await SalesOrder.create({
+      orderNumber: `SO-${new Date().getFullYear()}-${String(1000 + i).padStart(4, '0')}`,
+      quotationId: quote._id,
+      customerId: quote.customerId,
+      salespersonId: quote.salespersonId,
+      items: quote.items.map(item => {
+        const product = products.find(p => p._id.toString() === item.productId.toString());
+        return {
+          quotationItemId: item._id,
+          productId: item.productId,
+          qty: item.qty,
+          unitPrice: item.unitPrice,
+          discountPercent: item.discountPercent,
+          lineTotal: item.lineTotal,
+          lineMargin: item.lineMargin,
+          billingType: product?.billingType || 'ONE_TIME',
+          isRecommendation: item.isRecommendation,
+        };
+      }),
+      totalAmount: quote.totalAmount,
+      totalMargin: quote.totalMargin,
+      status: pick(orderStatuses, i),
+      confirmedAt: daysAgo(75 - (i % 50)),
+      createdAt: daysAgo(75 - (i % 50)),
+    });
+
+    await SalesOrderHistory.create({
+      salesOrderId: order._id,
+      actorId: quote.salespersonId,
+      action: 'Sales Order created from accepted quotation',
+      oldValue: null,
+      newValue: 'CONFIRMED',
+      createdAt: order.createdAt,
+    });
+
+    for (const item of order.items) {
+      const product = products.find(p => p._id.toString() === item.productId.toString());
+      if (product?.billingType === 'ONE_TIME') {
+        const warehouse = pick(warehouses, i + item.qty);
+        if (i % 10 === 0 && item.qty > 3) {
+          await Backorder.create({
+            salesOrderId: order._id,
+            salesOrderItemId: item._id,
+            productId: item.productId,
+            pendingQty: 1,
+            status: 'PENDING',
+          });
+        }
+        await Fulfillment.create({
+          salesOrderId: order._id,
+          salesOrderItemId: item._id,
+          warehouseId: warehouse._id,
+          allocatedQty: Math.max(1, item.qty - (i % 10 === 0 ? 1 : 0)),
+          status: pick(['RESERVED', 'SHIPPED', 'DELIVERED'], i + item.qty),
+        });
+      }
+    }
+
+    const subscriptionProduct = pick(recurringProducts, i);
+    const subscriptionAmount = Math.round(subscriptionProduct.sellingPrice * (1 + (i % 4)));
+    const subscription = await Subscription.create({
+      salesOrderId: order._id,
+      salesOrderItemId: order.items[0]._id,
+      productId: subscriptionProduct._id,
+      frequency: subscriptionProduct.frequency || pick(['MONTHLY', 'QUARTERLY', 'YEARLY'], i),
+      amount: subscriptionAmount,
+      startDate: daysAgo(60 - (i % 45)),
+      endDate: i % 13 === 0 ? daysFromNow(180 + (i % 90)) : null,
+      status: pick(['ACTIVE', 'ACTIVE', 'ACTIVE', 'PAUSED', 'CANCELLED', 'EXPIRED'], i),
+    });
+
+    await Invoice.create({
+      salesOrderId: order._id,
+      type: i % 3 === 0 ? 'RECURRING' : 'ONE_TIME',
+      amount: i % 3 === 0 ? subscription.amount : order.totalAmount,
+      status: pick(['DRAFT', 'ISSUED', 'ISSUED', 'PAID', 'OVERDUE', 'CANCELLED'], i),
+      issueDate: daysAgo(55 - (i % 45)),
+      dueDate: i % 7 === 0 ? daysAgo(2 + (i % 12)) : daysFromNow(7 + (i % 30)),
+    });
+
+    await DealHealth.create({
+      salesOrderId: order._id,
+      score: 40 + ((i * 19) % 60),
+      status: i % 9 === 0 ? 'CRITICAL' : i % 4 === 0 ? 'AT_RISK' : 'HEALTHY',
+      riskFactors: i % 4 === 0 ? ['Fulfillment or payment requires follow-up'] : [],
+    });
+  }
+
+  const paidInvoices = await Invoice.find({ status: 'PAID' }).limit(90);
+  for (let i = 0; i < paidInvoices.length; i += 1) {
+    await Payment.create({
+      invoiceId: paidInvoices[i]._id,
+      amount: paidInvoices[i].amount,
+      method: pick(['CARD', 'BANK_TRANSFER', 'UPI', 'OTHER'], i),
+      status: 'SUCCESS',
+      paidAt: daysAgo(i % 25),
+      reference: `PAY-${String(5000 + i)}`,
+    });
+  }
+
+  const counts = {
+    users: await User.countDocuments(),
+    customers: await Customer.countDocuments(),
+    products: await Product.countDocuments(),
+    quotations: await Quotation.countDocuments(),
+    salesOrders: await SalesOrder.countDocuments(),
+    invoices: await Invoice.countDocuments(),
+    subscriptions: await Subscription.countDocuments(),
+    fulfillments: await Fulfillment.countDocuments(),
+    approvals: await Approval.countDocuments(),
+    negotiations: await Negotiation.countDocuments(),
+    dealHealth: await DealHealth.countDocuments(),
+    payments: await Payment.countDocuments(),
+  };
+
+  console.log('\nDealFlow360 Database Seeded Successfully');
+  console.table(counts);
+  console.log('\nDemo Users:');
   console.log('  Admin:       admin@dealflow360.com / password123');
   console.log('  Manager:     manager@dealflow360.com / password123');
+  console.log('  Manager 2:   dwithi.manager@dealflow360.com / password123');
   console.log('  Salesperson: atharva@dealflow360.com / password123');
-  console.log('\nDemo Quotations:');
-  console.log(`  Q-Pending (Approval): ${qAcme._id}`);
-  console.log(`  Q-Accepted:           ${qVertex._id} (Status: ${qVertex.status})`);
-  console.log('\nDemo SalesOrder:');
-  console.log(`  SO Number: ${seededSalesOrder.orderNumber}`);
-  console.log(`  SO Status: ${seededSalesOrder.status}`);
-  console.log(`  SO Amount: ₹${seededSalesOrder.totalAmount.toLocaleString('en-IN')}`);
-  console.log('=========================================\n');
+  console.log('  Finance:     finance@dealflow360.com / password123');
+  console.log('  Customer:    customer1@dealflow360.com / password123');
 
-  process.exit(0);
+  await mongoose.disconnect();
 }
 
-seed().catch(err => {
+seed().catch(async err => {
   console.error('Seed script failed:', err);
+  await mongoose.disconnect().catch(() => {});
   process.exit(1);
 });

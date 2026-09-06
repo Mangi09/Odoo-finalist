@@ -3,6 +3,7 @@ const Quotation = require('../models/Quotation');
 const Product = require('../models/Product');
 const { generateRecommendations } = require('../services/recommendationService');
 const ApiResponse = require('../utils/apiResponse');
+const { calculateQuotationTotals } = require('../utils/quotationTotals');
 
 /**
  * GET /api/v1/quotations/:id/recommendations
@@ -28,7 +29,7 @@ exports.getRecommendationsForQuotation = async (req, res, next) => {
       price: r.productId?.sellingPrice || 0,
       type: r.type,
       reason: r.reason,
-      marginImpact: r.marginImpact ? `+$${r.marginImpact}` : '$0',
+      marginImpact: r.marginImpact ? `+₹${r.marginImpact}` : '₹0',
       status: r.status
     }));
 
@@ -66,8 +67,11 @@ exports.acceptRecommendation = async (req, res, next) => {
       isRecommendation: true
     });
 
-    quotation.totalAmount = (quotation.totalAmount || 0) + lineTotal;
-    quotation.totalMargin = (quotation.totalMargin || 0) + lineMargin;
+    const totals = calculateQuotationTotals(quotation.items, quotation.globalDiscountPercent || 0);
+    quotation.subtotalAmount = totals.subtotalAmount;
+    quotation.globalDiscountAmount = totals.globalDiscountAmount;
+    quotation.totalAmount = totals.totalAmount;
+    quotation.totalMargin = totals.totalMargin;
     await quotation.save();
 
     rec.status = 'ACCEPTED';

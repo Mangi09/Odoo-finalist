@@ -3,20 +3,11 @@ import "../App.css";
 import { api } from "../services/api";
 import { RefreshCw } from "lucide-react";
 
-const defaultSubscriptions = [
-  { id: "SUB-101", customer: "Acme Corp", plan: "Care Plan 2yr", cycle: "Monthly", nextBill: "Sep 15", status: "Active", amount: 499 },
-  { id: "SUB-102", customer: "Beta Industries", plan: "Support SLA", cycle: "Quarterly", nextBill: "Nov 1", status: "Active", amount: 1200 },
-  { id: "SUB-103", customer: "Delta LLC", plan: "Care Plan 1yr", cycle: "Monthly", nextBill: "-", status: "Paused", amount: 299 },
-  { id: "SUB-104", customer: "Nova Retail", plan: "NovaCloud Pro", cycle: "Yearly", nextBill: "Oct 20", status: "Active", amount: 3500 },
-  { id: "SUB-105", customer: "Apex Systems", plan: "Enterprise Care", cycle: "Monthly", nextBill: "Sep 30", status: "Active", amount: 899 },
-  { id: "SUB-106", customer: "Zenith Global", plan: "Basic SLA", cycle: "Monthly", nextBill: "-", status: "Cancelled", amount: 150 },
-  { id: "SUB-107", customer: "CyberDyne Inc", plan: "Custom Support", cycle: "Yearly", nextBill: "Nov 15", status: "Active", amount: 4800 },
-  { id: "SUB-108", customer: "Omni Consumer Products", plan: "Cloud Infrastructure", cycle: "Monthly", nextBill: "Oct 01", status: "Active", amount: 1500 },
-];
-
 function Subscriptions({ subscriptionsList, onNavigate, onSelectSubscription }) {
-  const [subscriptions, setSubscriptions] = useState(subscriptionsList || defaultSubscriptions);
+  const [subscriptions, setSubscriptions] = useState(subscriptionsList || []);
   const [filter, setFilter] = useState("all");
+  const [cycleFilter, setCycleFilter] = useState("all");
+  const [searchFilter, setSearchFilter] = useState("");
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -27,24 +18,23 @@ function Subscriptions({ subscriptionsList, onNavigate, onSelectSubscription }) 
     setLoading(true);
     try {
       const data = await api.subscriptions.getAll();
-      if (Array.isArray(data) && data.length > 0) {
+      if (Array.isArray(data)) {
         const mapped = data.map((s, idx) => ({
           _id: s._id,
-          id: s.subscriptionNumber || `SUB-${String(idx + 101)}`,
-          customer: s.customer || s.salesOrderId?.customer || "Customer Corp",
-          plan: s.planName || s.productName || "Enterprise Care Plan",
-          cycle: s.billingCycle ? s.billingCycle.charAt(0).toUpperCase() + s.billingCycle.slice(1).toLowerCase() : "Monthly",
-          nextBill: s.nextBillingDate ? new Date(s.nextBillingDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : "Sep 15",
-          status: s.status === 'ACTIVE' ? "Active" : (s.status === 'PAUSED' ? "Paused" : "Cancelled"),
-          amount: s.amount || 499
+          id: s.id,
+          customer: s.customer,
+          plan: s.plan,
+          cycle: s.cycle,
+          nextBill: s.nextBill,
+          status: s.status,
+          amount: s.amount,
+          salesperson: s.salesperson
         }));
-
-        const existing = new Set(mapped.map(m => m.id));
-        const combined = [...mapped, ...defaultSubscriptions.filter(d => !existing.has(d.id))];
-        setSubscriptions(combined);
+        setSubscriptions(mapped);
       }
     } catch (err) {
-      console.warn("Subscriptions API fallback:", err.message);
+      console.warn("Could not load subscriptions:", err.message);
+      setSubscriptions([]);
     } finally {
       setLoading(false);
     }
@@ -55,8 +45,10 @@ function Subscriptions({ subscriptionsList, onNavigate, onSelectSubscription }) 
   const cancelledCount = subscriptions.filter((s) => s.status.toLowerCase() === "cancelled").length;
 
   const filteredSubscriptions = subscriptions.filter((sub) => {
-    if (filter === "all") return true;
-    return sub.status.toLowerCase() === filter.toLowerCase();
+    const text = `${sub.id} ${sub.customer} ${sub.salesperson} ${sub.plan} ${sub.cycle} ${sub.status}`.toLowerCase();
+    return (filter === "all" || sub.status.toLowerCase() === filter.toLowerCase())
+      && (cycleFilter === "all" || sub.cycle === cycleFilter)
+      && text.includes(searchFilter.toLowerCase());
   });
 
   const handleRowClick = (sub) => {
@@ -122,6 +114,23 @@ function Subscriptions({ subscriptionsList, onNavigate, onSelectSubscription }) 
             <option value="paused">Paused Only ({pausedCount})</option>
             <option value="cancelled">Cancelled Only ({cancelledCount})</option>
           </select>
+          <select
+            value={cycleFilter}
+            onChange={(e) => setCycleFilter(e.target.value)}
+            style={{ marginLeft: "8px", padding: "4px 10px", borderRadius: "6px", border: "1px solid #cbd5e0" }}
+          >
+            <option value="all">All Cycles</option>
+            {[...new Set(subscriptions.map(sub => sub.cycle).filter(Boolean))].map(cycle => (
+              <option key={cycle} value={cycle}>{cycle}</option>
+            ))}
+          </select>
+          <input
+            type="text"
+            value={searchFilter}
+            onChange={(e) => setSearchFilter(e.target.value)}
+            placeholder="Filter by subscription, customer, salesperson, plan..."
+            style={{ marginLeft: "8px", padding: "4px 10px", borderRadius: "6px", border: "1px solid #cbd5e0", minWidth: "220px" }}
+          />
         </div>
 
         {/* Subscriptions Table */}
@@ -131,6 +140,7 @@ function Subscriptions({ subscriptionsList, onNavigate, onSelectSubscription }) 
               <tr>
                 <th>Subscription ID</th>
                 <th>Customer</th>
+                <th>Salesperson</th>
                 <th>Service Plan</th>
                 <th>Billing Cycle</th>
                 <th>Next Billing</th>
@@ -143,6 +153,7 @@ function Subscriptions({ subscriptionsList, onNavigate, onSelectSubscription }) 
                 <tr key={sub._id || sub.id} onClick={() => handleRowClick(sub)} style={{ cursor: "pointer" }}>
                   <td style={{ fontWeight: 600, color: "#1a365d" }}>{sub.id}</td>
                   <td>{sub.customer}</td>
+                  <td>{sub.salesperson || 'Unassigned'}</td>
                   <td>{sub.plan}</td>
                   <td>{sub.cycle}</td>
                   <td>{sub.nextBill}</td>
@@ -151,7 +162,7 @@ function Subscriptions({ subscriptionsList, onNavigate, onSelectSubscription }) 
                       {sub.status}
                     </span>
                   </td>
-                  <td style={{ fontWeight: 600 }}>₹{(sub.amount * 80).toLocaleString('en-IN')}</td>
+                  <td style={{ fontWeight: 600 }}>₹{Number(sub.amount || 0).toLocaleString('en-IN')}</td>
                 </tr>
               ))}
             </tbody>

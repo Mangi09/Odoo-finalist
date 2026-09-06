@@ -1819,6 +1819,22 @@ button.btn-danger {
   .form-grid {
     grid-template-columns: 1fr;
   }
+
+  .page-header,
+  .quotations-header,
+  .section-header,
+  .button-row {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .flow-board {
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  }
+
+  .metrics-container {
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  }
 }
 
 @media (max-width: 640px) {
@@ -1839,6 +1855,19 @@ button.btn-danger {
     width: 100%;
   }
 
+  .page-header,
+  .quotations-header,
+  .section-header {
+    flex-direction: column;
+    align-items: stretch !important;
+  }
+
+  .page-header-left,
+  .filter-section,
+  .button-row {
+    width: 100%;
+  }
+
   table,
   .table-wrapper table {
     min-width: 640px;
@@ -1852,6 +1881,17 @@ button.btn-danger {
   .page-actions {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .horizontal-timeline {
+    overflow-x: auto;
+    justify-content: flex-start;
+    padding-bottom: 8px;
+  }
+
+  .horizontal-timeline .timeline-node {
+    min-width: 120px;
+    flex: 0 0 auto;
   }
 
   .btn-primary,

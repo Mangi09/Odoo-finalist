@@ -2,7 +2,14 @@ const Quotation = require('../models/Quotation');
 const SalesOrder = require('../models/SalesOrder');
 const Approval = require('../models/Approval');
 const DealHealth = require('../models/DealHealth');
+const Customer = require('../models/Customer');
 const ApiResponse = require('../utils/apiResponse');
+
+async function getCustomerFilter(req) {
+  if (req.user?.role !== 'sales_manager') return {};
+  const customers = await Customer.find({ salespersonId: req.user.id }, '_id');
+  return { customerId: { $in: customers.map(customer => customer._id) } };
+}
 
 /**
  * GET /api/v1/dashboard/summary
@@ -10,10 +17,13 @@ const ApiResponse = require('../utils/apiResponse');
  */
 exports.getSummary = async (req, res, next) => {
   try {
+    const customerFilter = await getCustomerFilter(req);
     const openQuotes = await Quotation.find({
+      ...customerFilter,
       status: { $in: ['DRAFT', 'PENDING_APPROVAL', 'APPROVED', 'SENT_TO_CUSTOMER', 'NEGOTIATION', 'RE_APPROVAL'] }
     });
     const openOrders = await SalesOrder.find({
+      ...customerFilter,
       status: { $in: ['CONFIRMED', 'IN_FULFILLMENT', 'PARTIALLY_FULFILLED', 'BILLED'] }
     });
 
@@ -21,8 +31,19 @@ exports.getSummary = async (req, res, next) => {
     const pipelineValue = openQuotes.reduce((acc, q) => acc + (q.totalAmount || 0), 0) +
                           openOrders.reduce((acc, o) => acc + (o.totalAmount || 0), 0);
 
-    const pendingApprovalsCount = await Approval.countDocuments({ status: 'PENDING' });
-    const atRiskCount = await DealHealth.countDocuments({ status: { $in: ['AT_RISK', 'CRITICAL'] } });
+    const scopedQuoteIds = await Quotation.find(customerFilter, '_id');
+    const scopedOrderIds = await SalesOrder.find(customerFilter, '_id');
+    const pendingApprovalsCount = await Approval.countDocuments({
+      status: 'PENDING',
+      quotationId: { $in: scopedQuoteIds.map(q => q._id) }
+    });
+    const atRiskCount = await DealHealth.countDocuments({
+      status: { $in: ['AT_RISK', 'CRITICAL'] },
+      $or: [
+        { quotationId: { $in: scopedQuoteIds.map(q => q._id) } },
+        { salesOrderId: { $in: scopedOrderIds.map(o => o._id) } }
+      ]
+    });
 
     const pipelineValueDisplay = `₹${(pipelineValue / 100000).toFixed(2)}L`;
 
@@ -47,7 +68,8 @@ exports.getSummary = async (req, res, next) => {
  */
 exports.getRecentDeals = async (req, res, next) => {
   try {
-    const quotations = await Quotation.find()
+    const customerFilter = await getCustomerFilter(req);
+    const quotations = await Quotation.find(customerFilter)
       .populate('customerId')
       .sort({ updatedAt: -1 })
       .limit(10);

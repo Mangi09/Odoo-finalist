@@ -1,11 +1,11 @@
 const express = require('express');
 const router = express.Router();
 const invoiceController = require('../controllers/invoiceController');
-const { optionalAuth } = require('../middleware/auth');
+const { requireAuth } = require('../middleware/auth');
 
-router.get('/', optionalAuth, invoiceController.getInvoices);
-router.get('/:id', optionalAuth, invoiceController.getInvoiceById);
-router.get('/:id/pdf', optionalAuth, invoiceController.getInvoicePdf);
-router.post('/:id/payments', optionalAuth, invoiceController.recordPayment);
+router.get('/', requireAuth, invoiceController.getInvoices);
+router.get('/:id', requireAuth, invoiceController.getInvoiceById);
+router.get('/:id/pdf', requireAuth, invoiceController.getInvoicePdf);
+router.post('/:id/payments', requireAuth, invoiceController.recordPayment);
 
 module.exports = router;

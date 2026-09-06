@@ -3,22 +3,11 @@ import "../App.css";
 import { api } from "../services/api";
 import { RefreshCw } from "lucide-react";
 
-const defaultInvoices = [
-  { id: "INV-1042", customer: "Acme Corp", amount: "₹2,73,000", status: "Unpaid", dueDate: "Sep 10", type: "One-Time" },
-  { id: "INV-1043", customer: "Acme Corp", amount: "₹4,600", status: "Paid", dueDate: "Sep 15", type: "Recurring" },
-  { id: "INV-1038", customer: "Nova Retail", amount: "₹9,75,000", status: "Paid", dueDate: "Aug 30", type: "One-Time" },
-  { id: "INV-1044", customer: "Beta Industries", amount: "₹1,20,000", status: "Unpaid", dueDate: "Oct 01", type: "Recurring" },
-  { id: "INV-1045", customer: "Delta LLC", amount: "₹3,40,000", status: "Paid", dueDate: "Jul 20", type: "One-Time" },
-  { id: "INV-1046", customer: "Apex Systems", amount: "₹89,900", status: "Paid", dueDate: "Sep 01", type: "Recurring" },
-  { id: "INV-1047", customer: "CyberDyne Inc", amount: "₹4,80,000", status: "Unpaid", dueDate: "Nov 15", type: "Recurring" },
-  { id: "INV-1048", customer: "Omni Consumer Products", amount: "₹1,50,000", status: "Paid", dueDate: "Aug 15", type: "Recurring" },
-  { id: "INV-1049", customer: "Stark Logistics", amount: "₹2,20,000", status: "Paid", dueDate: "Sep 05", type: "Recurring" },
-  { id: "INV-1050", customer: "Wayne Tech", amount: "₹5,00,000", status: "Paid", dueDate: "Aug 10", type: "Recurring" },
-];
-
 function Invoices({ onNavigate }) {
-  const [invoices, setInvoices] = useState(defaultInvoices);
+  const [invoices, setInvoices] = useState([]);
   const [filter, setFilter] = useState("all");
+  const [typeFilter, setTypeFilter] = useState("all");
+  const [searchFilter, setSearchFilter] = useState("");
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -29,25 +18,24 @@ function Invoices({ onNavigate }) {
     setLoading(true);
     try {
       const data = await api.invoices.getAll();
-      if (Array.isArray(data) && data.length > 0) {
+      if (Array.isArray(data)) {
         const mapped = data.map(inv => ({
           _id: inv._id,
-          id: inv.id || `INV-${inv._id.toString().slice(-4).toUpperCase()}`,
-          customer: inv.customer || "Acme Corp",
-          amount: inv.amount || "₹2,73,000",
+          id: inv.id,
+          customer: inv.customer,
+          salesperson: inv.salesperson,
+          amount: inv.amount,
           rawAmount: inv.rawAmount,
-          status: inv.status || "Unpaid",
-          dueDate: inv.dueDate || "Net 30",
-          type: inv.type || "One-Time",
+          status: inv.status,
+          dueDate: inv.dueDate,
+          type: inv.type,
           salesOrderId: inv.salesOrderId
         }));
-
-        const existingIds = new Set(mapped.map(m => m.id));
-        const combined = [...mapped, ...defaultInvoices.filter(d => !existingIds.has(d.id))];
-        setInvoices(combined);
+        setInvoices(mapped);
       }
     } catch (err) {
-      console.warn("Invoices API fallback:", err.message);
+      console.warn("Could not load invoices:", err.message);
+      setInvoices([]);
     } finally {
       setLoading(false);
     }
@@ -57,8 +45,10 @@ function Invoices({ onNavigate }) {
   const paidCount = invoices.filter((i) => i.status.toLowerCase() === "paid").length;
 
   const filteredInvoices = invoices.filter((inv) => {
-    if (filter === "all") return true;
-    return inv.status.toLowerCase() === filter.toLowerCase();
+    const text = `${inv.id} ${inv.customer} ${inv.salesperson} ${inv.amount} ${inv.status} ${inv.type}`.toLowerCase();
+    return (filter === "all" || inv.status.toLowerCase() === filter.toLowerCase())
+      && (typeFilter === "all" || inv.type === typeFilter)
+      && text.includes(searchFilter.toLowerCase());
   });
 
   const handleRowClick = (inv) => onNavigate && onNavigate("invoice-detail", inv);
@@ -112,6 +102,23 @@ function Invoices({ onNavigate }) {
             <option value="unpaid">Unpaid Only ({unpaidCount})</option>
             <option value="paid">Paid Only ({paidCount})</option>
           </select>
+          <select
+            value={typeFilter}
+            onChange={(e) => setTypeFilter(e.target.value)}
+            style={{ marginLeft: "8px", padding: "4px 10px", borderRadius: "6px", border: "1px solid #cbd5e0" }}
+          >
+            <option value="all">All Types</option>
+            {[...new Set(invoices.map(inv => inv.type).filter(Boolean))].map(type => (
+              <option key={type} value={type}>{type}</option>
+            ))}
+          </select>
+          <input
+            type="text"
+            value={searchFilter}
+            onChange={(e) => setSearchFilter(e.target.value)}
+            placeholder="Filter by invoice, customer, salesperson..."
+            style={{ marginLeft: "8px", padding: "4px 10px", borderRadius: "6px", border: "1px solid #cbd5e0", minWidth: "220px" }}
+          />
         </div>
 
         {/* Invoice Table */}
@@ -121,6 +128,7 @@ function Invoices({ onNavigate }) {
               <tr>
                 <th>Invoice #</th>
                 <th>Customer</th>
+                <th>Salesperson</th>
                 <th>Amount</th>
                 <th>Status</th>
                 <th>Due Date</th>
@@ -133,6 +141,7 @@ function Invoices({ onNavigate }) {
                 <tr key={inv._id || inv.id} onClick={() => handleRowClick(inv)} style={{ cursor: "pointer" }}>
                   <td style={{ fontWeight: 600, color: "#1a365d" }}>{inv.id}</td>
                   <td>{inv.customer}</td>
+                  <td>{inv.salesperson || "Unassigned"}</td>
                   <td style={{ fontWeight: 600 }}>{inv.amount}</td>
                   <td>
                     <span className={`badge ${inv.status.toLowerCase() === "paid" ? "green" : "red"}`}>

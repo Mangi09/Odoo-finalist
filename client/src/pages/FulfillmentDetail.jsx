@@ -1,17 +1,27 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import "../App.css";
 import { CheckCircle2, Edit3, ArrowLeft } from "lucide-react";
 
 export default function FulfillmentDetail({ data, onNavigate }) {
-  const orderTitle = data ? `${data.order || 'Q-1042'} (${data.customer || 'Acme Corp'})` : "Q-1042 (Acme Corp)";
+  const orderTitle = data ? `${data.order || data.salesOrderNumber || 'Selected Order'} (${data.customer || 'Customer'})` : "Selected Fulfillment";
 
-  const [splitData, setSplitData] = useState([
-    { warehouse: "Main Warehouse", qty: 18, shipments: 1, cost: 42 },
-    { warehouse: "East Depot", qty: 6, shipments: 1, cost: 29 },
-  ]);
+  const [splitData, setSplitData] = useState([]);
 
   const [isOverrideMode, setIsOverrideMode] = useState(false);
   const [notification, setNotification] = useState(null);
+
+  useEffect(() => {
+    if (!data) {
+      setSplitData([]);
+      return;
+    }
+    setSplitData([{
+      warehouse: data.warehouse || data.warehouses || 'Warehouse',
+      qty: data.allocatedQty || data.qty || 0,
+      shipments: 1,
+      cost: Math.round((data.allocatedQty || data.qty || 0) * 2.1),
+    }]);
+  }, [data]);
 
   const handleQtyChange = (idx, newQty) => {
     const val = parseInt(newQty, 10) || 0;
@@ -82,10 +92,7 @@ export default function FulfillmentDetail({ data, onNavigate }) {
                         onChange={(e) => handleWarehouseChange(idx, e.target.value)}
                         style={{ padding: "4px 8px", borderRadius: "4px", border: "1px solid #cbd5e0" }}
                       >
-                        <option value="Main Warehouse">Main Warehouse</option>
-                        <option value="East Depot">East Depot</option>
-                        <option value="West Hub">West Hub</option>
-                        <option value="Central Fulfillment">Central Fulfillment</option>
+                        <option value={item.warehouse}>{item.warehouse}</option>
                       </select>
                     ) : (
                       <strong>{item.warehouse}</strong>
@@ -105,7 +112,7 @@ export default function FulfillmentDetail({ data, onNavigate }) {
                     )}
                   </td>
                   <td>{item.shipments}</td>
-                  <td>₹{item.cost * 80}</td>
+                  <td>₹{Number(item.cost || 0).toLocaleString('en-IN')}</td>
                 </tr>
               ))}
             </tbody>
@@ -128,7 +135,7 @@ export default function FulfillmentDetail({ data, onNavigate }) {
             </>
           ) : (
             <>
-              <button className="btn-primary" onClick={() => onNavigate && onNavigate("orders", { order: data?.order || "Q-1042", customer: data?.customer || "Acme Corp" })}>
+              <button className="btn-primary" onClick={() => onNavigate && onNavigate("orders", { order: data?.order, customer: data?.customer })}>
                 Accept Suggested Split
               </button>
               <button className="btn-outline" onClick={() => setIsOverrideMode(true)} style={{ display: "flex", alignItems: "center", gap: "6px" }}>

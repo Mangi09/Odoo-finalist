@@ -1,97 +1,67 @@
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import "../App.css";
 import { api } from "../services/api";
 import { Download, CheckCircle, CreditCard, ArrowLeft } from "lucide-react";
 
-export default function InvoiceDetailPage({ invoice, onNavigate }) {
-  const current = invoice || {
-    id: "INV-1042",
-    customer: "Acme Corp",
-    amount: "₹2,73,000",
-    status: "Unpaid",
-    dueDate: "Sep 10",
-    type: "One-Time"
-  };
-
-  const [paid, setPaid] = useState(current?.status === "Paid" || current?.status === "PAID");
+export default function InvoiceDetailPage({ invoice, onNavigate, currentUser }) {
+  const [current, setCurrent] = useState(invoice || {});
+  const paidStatus = current?.status === "Paid" || current?.status === "PAID";
+  const [paid, setPaid] = useState(paidStatus);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState(null);
+  const amountDisplay = useMemo(() => (
+    typeof current.amount === 'number' ? `₹${current.amount.toLocaleString('en-IN')}` : current.amount
+  ), [current.amount]);
+
+  useEffect(() => {
+    setCurrent(invoice || {});
+    setPaid(invoice?.status === "Paid" || invoice?.status === "PAID");
+    if (invoice?._id) {
+      api.invoices.getById(invoice._id)
+        .then(data => {
+          setCurrent(prev => ({ ...prev, ...data }));
+          setPaid(data?.status === "Paid" || data?.status === "PAID");
+        })
+        .catch(err => setMessage({ type: "error", text: err.message }));
+    }
+  }, [invoice]);
 
   const handleRecordPayment = async () => {
     setLoading(true);
     try {
       if (current._id) {
         await api.invoices.recordPayment(current._id, {
-          amount: current.rawAmount || 273000,
-          method: "MANUAL",
+          amount: current.rawAmount || current.amount,
+          method: "OTHER",
           reference: `REC-${Date.now().toString().slice(-6)}`
         });
       }
       setPaid(true);
-      setMessage({ type: "success", text: `Payment of ${current.amount} recorded successfully. Deal marked as Paid!` });
+      setMessage({ type: "success", text: `Payment of ${amountDisplay} recorded successfully. Deal marked as Paid!` });
     } catch (err) {
-      console.warn("Offline fallback for payment:", err.message);
-      setPaid(true);
-      setMessage({ type: "success", text: `Payment recorded locally. Status updated to Paid.` });
+      setMessage({ type: "error", text: err.message });
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDownloadInvoice = () => {
-    if (current._id) {
-      const pdfUrl = `http://localhost:5000/api/v1/invoices/${current._id}/pdf`;
-      window.open(pdfUrl, '_blank');
-    } else {
-      // Print-friendly invoice window for demonstration
-      const printWindow = window.open('', '_blank');
-      if (printWindow) {
-        printWindow.document.write(`
-          <html>
-            <head>
-              <title>Invoice - ${current.id}</title>
-              <style>
-                body { font-family: 'Segoe UI', Tahoma, sans-serif; padding: 40px; color: #2d3748; }
-                .header { border-bottom: 2px solid #714b67; padding-bottom: 20px; margin-bottom: 30px; display: flex; justify-content: space-between; }
-                h1 { color: #714b67; margin: 0; }
-                .badge { background: ${paid ? '#299b45' : '#e53e3e'}; color: white; padding: 6px 14px; border-radius: 4px; font-weight: bold; }
-                table { width: 100%; border-collapse: collapse; margin-top: 30px; }
-                th, td { border: 1px solid #e2e8f0; padding: 12px; text-align: left; }
-                th { background: #f7fafc; }
-                .total { text-align: right; font-size: 18px; font-weight: bold; margin-top: 20px; }
-              </style>
-            </head>
-            <body>
-              <div class="header">
-                <div>
-                  <h1>DealFlow360 Invoice</h1>
-                  <p>Tax Invoice / Delivery Note</p>
-                </div>
-                <div>
-                  <h2>${current.id}</h2>
-                  <span class="badge">${paid ? 'PAID' : 'UNPAID'}</span>
-                </div>
-              </div>
-              <p><strong>Billed To:</strong> ${current.customer}</p>
-              <p><strong>Due Date:</strong> ${current.dueDate || 'Net 30'}</p>
-              <p><strong>Type:</strong> ${current.type || 'One-Time'}</p>
-              <table>
-                <thead>
-                  <tr><th>Description</th><th>Qty</th><th>Amount</th></tr>
-                </thead>
-                <tbody>
-                  <tr><td>Enterprise Hardware & Software Bundle</td><td>1</td><td>${current.amount}</td></tr>
-                </tbody>
-              </table>
-              <div class="total">Total Due: ${current.amount}</div>
-              <p style="margin-top: 50px; font-size: 12px; color: #718096;">Generated by DealFlow360 Quote-to-Cash Platform</p>
-            </body>
-          </html>
-        `);
-        printWindow.document.close();
-        printWindow.focus();
-        setTimeout(() => printWindow.print(), 500);
-      }
+  const handleDownloadInvoice = async () => {
+    if (!current._id) return;
+    setLoading(true);
+    try {
+      const blob = await api.invoices.downloadPdf(current._id);
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${current.id || current._id}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setMessage({ type: "error", text: err.message });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -114,9 +84,9 @@ export default function InvoiceDetailPage({ invoice, onNavigate }) {
             padding: "12px 16px",
             borderRadius: "8px",
             marginBottom: "18px",
-            background: "#f0fdf4",
-            border: "1px solid #86efac",
-            color: "#166534",
+            background: message.type === "error" ? "#fef2f2" : "#f0fdf4",
+            border: `1px solid ${message.type === "error" ? "#fca5a5" : "#86efac"}`,
+            color: message.type === "error" ? "#991b1b" : "#166534",
             fontWeight: 500,
             fontSize: "14px",
             display: "flex",
@@ -148,8 +118,8 @@ export default function InvoiceDetailPage({ invoice, onNavigate }) {
             </thead>
             <tbody>
               <tr>
-                <td style={{ fontWeight: 600 }}>{current.id}</td>
-                <td style={{ fontWeight: 600 }}>{current.amount}</td>
+                <td style={{ fontWeight: 600 }}>{current.id || "Invoice"}</td>
+                <td style={{ fontWeight: 600 }}>{amountDisplay || "₹0"}</td>
                 <td>
                   <span className={`badge ${paid ? "green" : "red"}`}>
                     {paid ? "Paid" : "Unpaid"}
@@ -163,18 +133,18 @@ export default function InvoiceDetailPage({ invoice, onNavigate }) {
         </div>
 
         <div className="button-row" style={{ marginTop: "24px", display: 'flex', gap: '12px' }}>
-          {!paid ? (
+          {!paid && currentUser?.role !== 'salesperson' ? (
             <button className="btn-primary" onClick={handleRecordPayment} disabled={loading} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
               <CreditCard size={16} />
               <span>Record Payment</span>
             </button>
-          ) : (
+          ) : paid ? (
             <button className="btn-primary" disabled style={{ background: '#299b45', borderColor: '#299b45', display: 'flex', alignItems: 'center', gap: '6px' }}>
               <CheckCircle size={16} />
               <span>Payment Captured</span>
             </button>
-          )}
-          <button className="btn-outline" onClick={handleDownloadInvoice} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          ) : null}
+          <button className="btn-outline" onClick={handleDownloadInvoice} disabled={loading || !current._id} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <Download size={16} />
             <span>Download Invoice (PDF)</span>
           </button>

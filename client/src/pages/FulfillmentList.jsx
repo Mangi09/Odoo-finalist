@@ -4,20 +4,18 @@ import { api } from "../services/api";
 import { RefreshCw } from "lucide-react";
 
 export default function FulfillmentList({ onNavigate }) {
-  const [warehouseStock, setWarehouseStock] = useState([
-    { warehouse: "Main Warehouse", product: "Laptop Pro 14", inStock: 40, reserved: 18, available: 22 },
-    { warehouse: "East Depot", product: "Laptop Pro 14", inStock: 10, reserved: 6, available: 4 },
-    { warehouse: "Main Warehouse", product: "Docking Station", inStock: 65, reserved: 12, available: 53 },
-    { warehouse: "West Hub", product: "NovaBook Ultra 16", inStock: 30, reserved: 8, available: 22 },
-  ]);
-
-  const [ordersAwaiting, setOrdersAwaiting] = useState([
-    { order: "Q-1042", customer: "Acme Corp", status: "Split Pending", warehouses: "Main + East Depot" },
-    { order: "Q-1030", customer: "Zenith Co", status: "Backorder", warehouses: "East Depot" },
-    { order: "Q-1039", customer: "Beta Industries", status: "Reserved", warehouses: "Main Warehouse" },
-  ]);
-
+  const [warehouseStock, setWarehouseStock] = useState([]);
+  const [warehouses, setWarehouses] = useState([]);
+  const [ordersAwaiting, setOrdersAwaiting] = useState([]);
   const [loading, setLoading] = useState(false);
+  const currentRole = (() => {
+    try {
+      return JSON.parse(localStorage.getItem('dealflow-user') || '{}')?.role;
+    } catch {
+      return null;
+    }
+  })();
+  const isAdmin = currentRole === 'admin';
 
   useEffect(() => {
     loadFulfillments();
@@ -26,25 +24,69 @@ export default function FulfillmentList({ onNavigate }) {
   const loadFulfillments = async () => {
     setLoading(true);
     try {
-      const data = await api.fulfillments.getAll();
-      if (Array.isArray(data) && data.length > 0) {
-        const mapped = data.map((f, idx) => ({
+      const [fulfillments, stock, warehouseRes] = await Promise.allSettled([
+        api.fulfillments.getAll(),
+        api.fulfillments.getStock(),
+        isAdmin ? api.warehouses.getAll() : Promise.resolve([]),
+      ]);
+      if (stock.status === 'fulfilled' && Array.isArray(stock.value)) {
+        setWarehouseStock(stock.value);
+      }
+      if (warehouseRes.status === 'fulfilled' && Array.isArray(warehouseRes.value)) {
+        setWarehouses(warehouseRes.value);
+      }
+      if (fulfillments.status === 'fulfilled' && Array.isArray(fulfillments.value)) {
+        const warehouseByOrder = fulfillments.value.reduce((acc, item) => {
+          const key = item.salesOrderNumber || item.salesOrderId || item._id;
+          acc[key] = acc[key] ? `${acc[key]} + ${item.warehouse}` : item.warehouse;
+          return acc;
+        }, {});
+        const mapped = fulfillments.value.map((f, idx) => ({
           _id: f._id,
-          order: f.orderNumber || f.salesOrderId?.orderNumber || `SO-2026-${idx + 1040}`,
+          order: f.salesOrderNumber || f.salesOrderId?.orderNumber || `FUL-${idx + 1}`,
           customer: f.customer || f.salesOrderId?.customer || "Customer Corp",
+          salesperson: f.salesperson || 'Unassigned',
+          warehouse: f.warehouse || f.warehouseName || 'Warehouse',
           status: f.status === 'RESERVED' ? 'Split Pending' : (f.status === 'DELIVERED' ? 'Fulfilled' : f.status),
-          warehouses: f.warehouseName || (f.allocations?.map(a => a.warehouse).join(' + ')) || "Main Warehouse"
+          warehouses: warehouseByOrder[f.salesOrderNumber || f.salesOrderId || f._id] || f.warehouse || 'Warehouse'
         }));
-
-        const existing = new Set(mapped.map(m => m.order));
-        const combined = [...mapped, ...ordersAwaiting.filter(o => !existing.has(o.order))];
-        setOrdersAwaiting(combined);
+        setOrdersAwaiting(mapped);
       }
     } catch (err) {
       console.warn("Fulfillments API notice:", err.message);
+      setWarehouseStock([]);
+      setWarehouses([]);
+      setOrdersAwaiting([]);
     } finally {
       setLoading(false);
     }
+  };
+
+  const archiveWarehouse = async (warehouse) => {
+    if (!window.confirm(`Archive warehouse ${warehouse.name}?`)) return;
+    await api.warehouses.archive(warehouse._id);
+    await loadFulfillments();
+  };
+
+  const editWarehouse = async (warehouse) => {
+    const name = window.prompt("Warehouse name", warehouse.name);
+    if (!name) return;
+    const location = window.prompt("Warehouse location", warehouse.location || "");
+    if (location === null) return;
+    const priorityValue = window.prompt("Warehouse priority", String(warehouse.priority || 1));
+    if (priorityValue === null) return;
+    await api.warehouses.update(warehouse._id, {
+      name,
+      location,
+      priority: Number(priorityValue) || 1,
+    });
+    await loadFulfillments();
+  };
+
+  const deleteWarehouse = async (warehouse) => {
+    if (!window.confirm(`Delete warehouse ${warehouse.name}? This cannot be undone.`)) return;
+    await api.warehouses.delete(warehouse._id);
+    await loadFulfillments();
   };
 
   return (
@@ -89,6 +131,46 @@ export default function FulfillmentList({ onNavigate }) {
           </table>
         </div>
 
+        {isAdmin && (
+          <>
+            <h2 style={{ fontSize: "16px", color: "#2b6cb0", marginTop: "32px", marginBottom: "16px", fontWeight: "600" }}>
+              Warehouse Management ({warehouses.length})
+            </h2>
+            <div className="table-wrapper">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Warehouse</th>
+                    <th>Location</th>
+                    <th>Priority</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {warehouses.map((warehouse) => (
+                    <tr key={warehouse._id}>
+                      <td style={{ fontWeight: 600, color: "#1a365d" }}>{warehouse.name}</td>
+                      <td>{warehouse.location || '-'}</td>
+                      <td>{warehouse.priority}</td>
+                      <td>
+                        <button className="btn-outline" style={{ padding: "3px 8px", fontSize: "11px" }} onClick={() => editWarehouse(warehouse)}>
+                          Edit
+                        </button>
+                        <button className="btn-outline" style={{ padding: "3px 8px", fontSize: "11px", marginLeft: "6px" }} onClick={() => archiveWarehouse(warehouse)}>
+                          Archive
+                        </button>
+                        <button className="btn-outline" style={{ padding: "3px 8px", fontSize: "11px", marginLeft: "6px", color: "#dc2626", borderColor: "#fca5a5" }} onClick={() => deleteWarehouse(warehouse)}>
+                          Delete
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+
         <h2 style={{ fontSize: "16px", color: "#2b6cb0", marginTop: "32px", marginBottom: "16px", fontWeight: "600" }}>
           Orders Awaiting Physical Fulfillment ({ordersAwaiting.length})
         </h2>
@@ -99,6 +181,7 @@ export default function FulfillmentList({ onNavigate }) {
               <tr>
                 <th>Order Ref</th>
                 <th>Customer</th>
+                <th>Salesperson</th>
                 <th>Fulfillment Status</th>
                 <th>Assigned Warehouses</th>
                 <th>Action</th>
@@ -113,6 +196,7 @@ export default function FulfillmentList({ onNavigate }) {
                 >
                   <td style={{ fontWeight: 600, color: "#1a365d" }}>{order.order}</td>
                   <td>{order.customer}</td>
+                  <td>{order.salesperson || 'Unassigned'}</td>
                   <td>
                     <span className={`badge ${order.status.includes('Fulfilled') ? 'green' : (order.status.includes('Backorder') ? 'red' : 'orange')}`}>
                       {order.status}

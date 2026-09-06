@@ -1,11 +1,12 @@
 const express = require('express');
 const router = express.Router();
 const productController = require('../controllers/productController');
-const { optionalAuth } = require('../middleware/auth');
+const { requireAuth } = require('../middleware/auth');
+const { requireRole } = require('../middleware/rbac');
 
-router.get('/', optionalAuth, productController.getProducts);
-router.get('/:id', optionalAuth, productController.getProductById);
-router.post('/', optionalAuth, productController.createProduct);
-router.put('/:id', optionalAuth, productController.updateProduct);
+router.get('/', requireAuth, requireRole('salesperson', 'sales_manager', 'finance_ops', 'admin'), productController.getProducts);
+router.get('/:id', requireAuth, requireRole('salesperson', 'sales_manager', 'finance_ops', 'admin'), productController.getProductById);
+router.post('/', requireAuth, requireRole('sales_manager', 'admin'), productController.createProduct);
+router.put('/:id', requireAuth, requireRole('sales_manager', 'admin'), productController.updateProduct);
 
 module.exports = router;

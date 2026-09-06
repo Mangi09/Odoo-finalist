@@ -12,6 +12,8 @@ function formatApproval(appr) {
   if (appr.requestedDiscountPercent > 20) risk = 'HIGH';
   else if (appr.requestedDiscountPercent > 10) risk = 'MEDIUM';
 
+  const salesperson = quote.salespersonId?.name || 'Unassigned';
+
   const stageNames = {
     1: 'Sales Manager',
     2: 'VP Sales',
@@ -23,12 +25,22 @@ function formatApproval(appr) {
     quotation: quote.quotationNumber || (quote._id ? `Q-${quote._id.toString().slice(-4).toUpperCase()}` : 'Q-UNKNOWN'),
     quotationId: quote._id,
     customer: cust.name || 'Acme Corp',
+    salesperson,
     risk,
     stage: stageNames[appr.level] || `Level ${appr.level}`,
     assigned: approver.name || (appr.status === 'APPROVED' ? 'Approved' : 'Pending Manager'),
     status: appr.status,
     requestedDiscount: `${appr.requestedDiscountPercent}%`,
     allowedDiscount: `${appr.allowedDiscountPercent || 0}%`,
+    subtotalAmount: quote.subtotalAmount || quote.totalAmount || 0,
+    globalDiscountPercent: quote.globalDiscountPercent || 0,
+    globalDiscountAmount: quote.globalDiscountAmount || 0,
+    totalAmount: quote.totalAmount || 0,
+    items: (quote.items || []).map(item => ({
+      product: item.productId?.name || 'Product',
+      discountPercent: item.discountPercent || 0,
+      lineTotal: item.lineTotal || 0
+    })),
     reason: appr.reason,
     marginImpact: appr.requestedDiscountPercent ? `-${appr.requestedDiscountPercent * 0.8}% Margin` : 'Minimal',
     createdAt: appr.createdAt
@@ -47,7 +59,7 @@ exports.getApprovals = async (req, res, next) => {
     const approvals = await Approval.find(filter)
       .populate({
         path: 'quotationId',
-        populate: { path: 'customerId' }
+        populate: [{ path: 'customerId' }, { path: 'salespersonId' }]
       })
       .populate('approverId')
       .sort({ createdAt: -1 });
@@ -67,7 +79,7 @@ exports.getApprovalById = async (req, res, next) => {
     const approval = await Approval.findById(req.params.id)
       .populate({
         path: 'quotationId',
-        populate: [{ path: 'customerId' }, { path: 'items.productId' }]
+        populate: [{ path: 'customerId' }, { path: 'items.productId' }, { path: 'salespersonId' }]
       })
       .populate('approverId');
 

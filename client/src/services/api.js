@@ -37,6 +37,26 @@ async function request(endpoint, options = {}) {
   }
 }
 
+async function requestBlob(endpoint, options = {}) {
+  const token = localStorage.getItem('dealflow-token');
+  const res = await fetch(`${API_BASE}${endpoint}`, {
+    ...options,
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(options.headers || {}),
+    },
+  });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    const error = new Error(text || res.statusText || 'Request failed');
+    error.status = res.status;
+    throw error;
+  }
+
+  return res.blob();
+}
+
 export const api = {
   // Auth
   auth: {
@@ -61,6 +81,12 @@ export const api = {
     getRecentDeals: async () => request('/dashboard/recent-deals'),
   },
 
+  // Customers
+  customers: {
+    getAll: async () => request('/customers'),
+    create: async (data) => request('/customers', { method: 'POST', body: JSON.stringify(data) }),
+  },
+
   // Quotations
   quotations: {
     getAll: async (params = {}) => {
@@ -69,7 +95,9 @@ export const api = {
     },
     getById: async (id) => request(`/quotations/${id}`),
     create: async (data) => request('/quotations', { method: 'POST', body: JSON.stringify(data) }),
-    update: async (id, data) => request(`/quotations/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    update: async (id, data) => request(`/quotations/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+    archive: async (id) => request(`/quotations/${id}/archive`, { method: 'PATCH' }),
+    delete: async (id) => request(`/quotations/${id}`, { method: 'DELETE' }),
     submit: async (id) => request(`/quotations/${id}/submit`, { method: 'POST' }),
     accept: async (id) => request(`/quotations/${id}/accept`, { method: 'POST' }),
   },
@@ -115,6 +143,7 @@ export const api = {
   // Fulfillments
   fulfillments: {
     getAll: async () => request('/fulfillments'),
+    getStock: async () => request('/fulfillments/stock'),
     getById: async (id) => request(`/fulfillments/${id}`),
     updateStatus: async (id, status) =>
       request(`/fulfillments/${id}`, {
@@ -146,13 +175,22 @@ export const api = {
         method: 'POST',
         body: JSON.stringify(data),
       }),
+    downloadPdf: async (id) => requestBlob(`/invoices/${id}/pdf`),
     getPdfUrl: (id) => `${API_BASE}/invoices/${id}/pdf`,
+  },
+
+  // Recommendations
+  recommendations: {
+    getForQuotation: async (id) => request(`/quotations/${id}/recommendations`),
+    accept: async (id) => request(`/recommendations/${id}/accept`, { method: 'POST' }),
+    reject: async (id) => request(`/recommendations/${id}/reject`, { method: 'POST' }),
   },
 
   // Deal Health
   dealHealth: {
     getDashboard: async () => request('/deal-health'),
     recalculate: async (id) => request(`/deal-health/recalculate/${id}`, { method: 'POST' }),
+    escalate: async (id) => request(`/deal-health/${id}/escalate`, { method: 'POST' }),
   },
 
   // Reports
@@ -164,8 +202,18 @@ export const api = {
     getActivity: async () => request('/reports/activity'),
   },
 
+  // Warehouses
+  warehouses: {
+    getAll: async () => request('/warehouses'),
+    create: async (data) => request('/warehouses', { method: 'POST', body: JSON.stringify(data) }),
+    update: async (id, data) => request(`/warehouses/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+    archive: async (id) => request(`/warehouses/${id}/archive`, { method: 'PATCH' }),
+    delete: async (id) => request(`/warehouses/${id}`, { method: 'DELETE' }),
+  },
+
   // Customer Portal
   portal: {
+    getAdminRequests: async () => request('/portal/admin/requests'),
     getQuotation: async (id) => request(`/portal/quotation/${id}`),
     accept: async (id) => request(`/portal/quotation/${id}/accept`, { method: 'POST' }),
     reject: async (id, reason) => request(`/portal/quotation/${id}/reject`, { method: 'POST', body: JSON.stringify({ reason }) }),

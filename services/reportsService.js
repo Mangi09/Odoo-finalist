@@ -1,6 +1,6 @@
 /**
  * Reports Service
- * Aggregation queries for admin dashboard KPIs and analytics.
+ * Aggregation queries for dashboard KPIs and analytics.
  */
 
 const Quotation = require('../models/Quotation');
@@ -10,160 +10,205 @@ const Invoice = require('../models/Invoice');
 const Payment = require('../models/Payment');
 const DealHealth = require('../models/DealHealth');
 const Fulfillment = require('../models/Fulfillment');
-const Product = require('../models/Product');
+
+const activeQuoteStatuses = ['DRAFT', 'PENDING_APPROVAL', 'APPROVED', 'SENT_TO_CUSTOMER', 'NEGOTIATION', 'RE_APPROVAL', 'ACCEPTED'];
+const activeSoStatuses = ['CONFIRMED', 'IN_FULFILLMENT', 'PARTIALLY_FULFILLED', 'BILLED'];
+
+function customerFilter(customerIds) {
+  return Array.isArray(customerIds) ? { customerId: { $in: customerIds } } : {};
+}
+
+async function scopedIds(customerIds) {
+  const quoteFilter = customerFilter(customerIds);
+  const orderFilter = customerFilter(customerIds);
+  const [quotes, orders] = await Promise.all([
+    Quotation.find(quoteFilter, '_id'),
+    SalesOrder.find(orderFilter, '_id')
+  ]);
+  return {
+    quoteIds: quotes.map(q => q._id),
+    orderIds: orders.map(o => o._id)
+  };
+}
+
+async function scopedInvoiceIds(orderIds) {
+  const invoices = await Invoice.find({ salesOrderId: { $in: orderIds } }, '_id');
+  return invoices.map(invoice => invoice._id);
+}
+
+async function sumField(model, match, field) {
+  const result = await model.aggregate([
+    { $match: match },
+    { $group: { _id: null, total: { $sum: field } } }
+  ]);
+  return result[0]?.total || 0;
+}
+
+async function averageAgeDays(model, match) {
+  const docs = await model.find(match, 'createdAt');
+  if (!docs.length) return '0 days';
+  const totalDays = docs.reduce((sum, doc) => {
+    return sum + Math.max(0, Date.now() - new Date(doc.createdAt).getTime()) / (1000 * 60 * 60 * 24);
+  }, 0);
+  return `${Math.max(1, Math.round(totalDays / docs.length))} days`;
+}
+
+function completionRate(count, total) {
+  return total > 0 ? `${Math.round((count / total) * 100)}%` : '0%';
+}
 
 /**
- * Get KPI summary for admin dashboard.
+ * Get KPI summary.
  */
-async function getKpis() {
-  const activeQuoteStatuses = ['DRAFT', 'PENDING_APPROVAL', 'APPROVED', 'SENT_TO_CUSTOMER', 'NEGOTIATION', 'RE_APPROVAL', 'ACCEPTED'];
-  const activeSoStatuses = ['CONFIRMED', 'IN_FULFILLMENT', 'PARTIALLY_FULFILLED', 'BILLED'];
+async function getKpis(customerIds = null) {
+  const quoteFilter = customerFilter(customerIds);
+  const orderFilter = customerFilter(customerIds);
+  const { quoteIds, orderIds } = await scopedIds(customerIds);
+  const invoiceIds = await scopedInvoiceIds(orderIds);
 
-  const activeQuoteCount = await Quotation.countDocuments({ status: { $in: activeQuoteStatuses } });
-  const activeSoCount = await SalesOrder.countDocuments({ status: { $in: activeSoStatuses } });
+  const activeQuoteCount = await Quotation.countDocuments({ ...quoteFilter, status: { $in: activeQuoteStatuses } });
+  const activeSoCount = await SalesOrder.countDocuments({ ...orderFilter, status: { $in: activeSoStatuses } });
   const activeDeals = activeQuoteCount + activeSoCount;
 
-  const quotePipeline = await Quotation.aggregate([
-    { $match: { status: { $in: activeQuoteStatuses } } },
-    { $group: { _id: null, total: { $sum: '$totalAmount' } } },
-  ]);
-  const soPipeline = await SalesOrder.aggregate([
-    { $match: { status: { $in: activeSoStatuses } } },
-    { $group: { _id: null, total: { $sum: '$totalAmount' } } },
-  ]);
+  const quotePipeline = await sumField(Quotation, { ...quoteFilter, status: { $in: activeQuoteStatuses } }, '$totalAmount');
+  const soPipeline = await sumField(SalesOrder, { ...orderFilter, status: { $in: activeSoStatuses } }, '$totalAmount');
+  const revenuePipeline = quotePipeline + soPipeline;
 
-  const revenuePipeline = (quotePipeline[0]?.total || 0) + (soPipeline[0]?.total || 0);
+  const pendingApprovals = await Approval.countDocuments({
+    status: 'PENDING',
+    quotationId: { $in: quoteIds }
+  });
 
-  const pendingApprovals = await Approval.countDocuments({ status: 'PENDING' });
+  const paymentsCollected = await sumField(Payment, {
+    status: 'SUCCESS',
+    invoiceId: { $in: invoiceIds }
+  }, '$amount');
 
-  const paymentResult = await Payment.aggregate([
-    { $match: { status: 'CAPTURED' } },
-    { $group: { _id: null, total: { $sum: '$amount' } } },
-  ]);
-  const paymentsCollected = paymentResult[0]?.total || 0;
-
-  // Calculate collection rate
-  const totalInvoiced = await Invoice.aggregate([
-    { $match: { status: { $in: ['ISSUED', 'PAID'] } } },
-    { $group: { _id: null, total: { $sum: '$amount' } } },
-  ]);
-  const totalInvoicedAmount = totalInvoiced[0]?.total || 1;
-  const collectionRate = Math.round((paymentsCollected / totalInvoicedAmount) * 100);
+  const totalInvoicedAmount = await sumField(Invoice, {
+    salesOrderId: { $in: orderIds },
+    status: { $in: ['ISSUED', 'PAID'] }
+  }, '$amount');
+  const collectionRate = totalInvoicedAmount > 0 ? Math.round((paymentsCollected / totalInvoicedAmount) * 100) : 0;
 
   return {
-    activeDeals: { value: activeDeals.toString(), context: 'this month', trend: 'trend-up' },
+    activeDeals: { value: activeDeals.toString(), context: 'assigned customers', trend: 'trend-up' },
     revenuePipeline: { value: `₹${(revenuePipeline / 100000).toFixed(1)}L`, context: 'Across active opportunities', trend: 'trend-up' },
     pendingApprovals: { value: pendingApprovals.toString(), context: 'Requires management attention', trend: pendingApprovals > 5 ? 'attention' : 'trend-up' },
-    paymentsCollected: { value: `₹${(paymentsCollected / 100000).toFixed(1)}L`, context: `${collectionRate}% collection rate`, trend: 'trend-up' },
+    paymentsCollected: { value: `₹${(paymentsCollected / 100000).toFixed(1)}L`, context: `${collectionRate}% collection rate`, trend: 'trend-up' }
   };
 }
 
 /**
  * Get lifecycle overview stages.
  */
-async function getLifecycleStages() {
-  const quoteResults = [
-    { name: 'Sales', count: await Quotation.countDocuments({ status: 'DRAFT' }) },
-    { name: 'Quotation', count: await Quotation.countDocuments({ status: { $in: ['PENDING_APPROVAL', 'APPROVED'] } }) },
-    { name: 'Negotiation', count: await Quotation.countDocuments({ status: { $in: ['SENT_TO_CUSTOMER', 'NEGOTIATION', 'RE_APPROVAL'] } }) },
-    { name: 'Approval', count: await Approval.countDocuments({ status: 'PENDING' }) },
-    { name: 'Fulfillment', count: await SalesOrder.countDocuments({ status: { $in: ['CONFIRMED', 'IN_FULFILLMENT', 'PARTIALLY_FULFILLED'] } }) },
-    { name: 'Invoice', count: await SalesOrder.countDocuments({ status: 'BILLED' }) },
-    { name: 'Payment', count: await SalesOrder.countDocuments({ status: 'PAID' }) },
+async function getLifecycleStages(customerIds = null) {
+  const quoteFilter = customerFilter(customerIds);
+  const orderFilter = customerFilter(customerIds);
+  const { quoteIds } = await scopedIds(customerIds);
+
+  const stages = [
+    { name: 'Sales', count: await Quotation.countDocuments({ ...quoteFilter, status: 'DRAFT' }), model: Quotation, filter: { ...quoteFilter, status: 'DRAFT' } },
+    { name: 'Quotation', count: await Quotation.countDocuments({ ...quoteFilter, status: { $in: ['PENDING_APPROVAL', 'APPROVED'] } }), model: Quotation, filter: { ...quoteFilter, status: { $in: ['PENDING_APPROVAL', 'APPROVED'] } } },
+    { name: 'Negotiation', count: await Quotation.countDocuments({ ...quoteFilter, status: { $in: ['SENT_TO_CUSTOMER', 'NEGOTIATION', 'RE_APPROVAL'] } }), model: Quotation, filter: { ...quoteFilter, status: { $in: ['SENT_TO_CUSTOMER', 'NEGOTIATION', 'RE_APPROVAL'] } } },
+    { name: 'Approval', count: await Approval.countDocuments({ status: 'PENDING', quotationId: { $in: quoteIds } }), model: Approval, filter: { status: 'PENDING', quotationId: { $in: quoteIds } } },
+    { name: 'Fulfillment', count: await SalesOrder.countDocuments({ ...orderFilter, status: { $in: ['CONFIRMED', 'IN_FULFILLMENT', 'PARTIALLY_FULFILLED'] } }), model: SalesOrder, filter: { ...orderFilter, status: { $in: ['CONFIRMED', 'IN_FULFILLMENT', 'PARTIALLY_FULFILLED'] } } },
+    { name: 'Invoice', count: await SalesOrder.countDocuments({ ...orderFilter, status: 'BILLED' }), model: SalesOrder, filter: { ...orderFilter, status: 'BILLED' } },
+    { name: 'Payment', count: await SalesOrder.countDocuments({ ...orderFilter, status: 'PAID' }), model: SalesOrder, filter: { ...orderFilter, status: 'PAID' } }
   ];
 
-  return quoteResults.map(r => ({
-    name: r.name,
-    count: r.count,
-    avgTime: `${Math.floor(Math.random() * 7) + 1} days`,
-    completionRate: `${Math.floor(60 + Math.random() * 40)}%`,
-  }));
+  const total = stages.reduce((sum, stage) => sum + stage.count, 0);
+  return Promise.all(stages.map(async stage => ({
+    name: stage.name,
+    count: stage.count,
+    avgTime: await averageAgeDays(stage.model, stage.filter),
+    completionRate: completionRate(stage.count, total)
+  })));
 }
 
 /**
  * Get performance analytics.
  */
-async function getAnalytics() {
-  const created = await Quotation.countDocuments();
-  const won = await SalesOrder.countDocuments({ status: 'PAID' });
+async function getAnalytics(customerIds = null) {
+  const quoteFilter = customerFilter(customerIds);
+  const orderFilter = customerFilter(customerIds);
+  const { quoteIds, orderIds } = await scopedIds(customerIds);
+  const invoiceIds = await scopedInvoiceIds(orderIds);
+
+  const created = await Quotation.countDocuments(quoteFilter);
+  const won = await SalesOrder.countDocuments({ ...orderFilter, status: 'PAID' });
   const conversionRate = created > 0 ? `${Math.round((won / created) * 100)}%` : '0%';
 
-  const activeNeg = await Quotation.countDocuments({ status: { $in: ['NEGOTIATION', 'RE_APPROVAL'] } });
-  const escalations = await Approval.countDocuments({ level: { $gte: 2 } });
+  const activeNeg = await Quotation.countDocuments({ ...quoteFilter, status: { $in: ['NEGOTIATION', 'RE_APPROVAL'] } });
+  const escalations = await Approval.countDocuments({ level: { $gte: 2 }, quotationId: { $in: quoteIds } });
 
-  const inProgress = await Fulfillment.countDocuments({ status: 'RESERVED' });
-  const delayed = await Fulfillment.countDocuments({ status: 'SHIPPED' });
-  const completed = await Fulfillment.countDocuments({ status: 'DELIVERED' });
+  const inProgress = await Fulfillment.countDocuments({ salesOrderId: { $in: orderIds }, status: 'RESERVED' });
+  const delayed = await Fulfillment.countDocuments({ salesOrderId: { $in: orderIds }, status: 'SHIPPED' });
+  const completed = await Fulfillment.countDocuments({ salesOrderId: { $in: orderIds }, status: 'DELIVERED' });
 
-  const receivedResult = await Payment.aggregate([
-    { $match: { status: 'CAPTURED' } },
-    { $group: { _id: null, total: { $sum: '$amount' } } },
-  ]);
-  const received = receivedResult[0]?.total || 0;
-
-  const outstandingResult = await Invoice.aggregate([
-    { $match: { status: 'ISSUED' } },
-    { $group: { _id: null, total: { $sum: '$amount' } } },
-  ]);
-  const outstanding = outstandingResult[0]?.total || 0;
-
-  const overdueResult = await Invoice.aggregate([
-    { $match: { status: 'OVERDUE' } },
-    { $group: { _id: null, total: { $sum: '$amount' } } },
-  ]);
-  const overdue = overdueResult[0]?.total || 0;
+  const received = await sumField(Payment, { status: 'SUCCESS', invoiceId: { $in: invoiceIds } }, '$amount');
+  const outstanding = await sumField(Invoice, { salesOrderId: { $in: orderIds }, status: 'ISSUED' }, '$amount');
+  const overdue = await sumField(Invoice, { salesOrderId: { $in: orderIds }, status: 'OVERDUE' }, '$amount');
 
   return {
     sales: { created, won, conversionRate },
-    negotiation: { active: activeNeg, avgDuration: '6 Days', escalation: escalations },
+    negotiation: { active: activeNeg, avgDuration: await averageAgeDays(Quotation, { ...quoteFilter, status: { $in: ['NEGOTIATION', 'RE_APPROVAL'] } }), escalation: escalations },
     fulfillment: { inProgress, delayed, completed },
     finance: {
       received: `₹${(received / 100000).toFixed(1)}L`,
       outstanding: `₹${(outstanding / 100000).toFixed(1)}L`,
-      overdue: `₹${(overdue / 100000).toFixed(1)}L`,
-    },
+      overdue: `₹${(overdue / 100000).toFixed(1)}L`
+    }
   };
 }
 
 /**
  * Get attention items.
  */
-async function getAttentionItems() {
+async function getAttentionItems(customerIds = null) {
   const items = [];
+  const { quoteIds, orderIds } = await scopedIds(customerIds);
 
-  // Approval bottleneck
   const staleApprovals = await Approval.countDocuments({
     status: 'PENDING',
-    createdAt: { $lt: new Date(Date.now() - 48 * 60 * 60 * 1000) },
+    quotationId: { $in: quoteIds },
+    createdAt: { $lt: new Date(Date.now() - 48 * 60 * 60 * 1000) }
   });
   if (staleApprovals > 0) {
     items.push({
-      title: 'Approval Bottleneck',
-      description: `${staleApprovals} deals have been waiting for approval for more than 48 hours.`,
-      severity: 'High',
+      type: 'Approval Bottleneck',
+      deal: `${staleApprovals} approvals`,
+      detail: `${staleApprovals} deals have been waiting for approval for more than 48 hours.`,
+      severity: 'High'
     });
   }
 
-  // Overdue invoices
   const overdueCount = await Invoice.countDocuments({
+    salesOrderId: { $in: orderIds },
     status: { $in: ['ISSUED', 'OVERDUE'] },
-    dueDate: { $lt: new Date() },
+    dueDate: { $lt: new Date() }
   });
   if (overdueCount > 0) {
     items.push({
-      title: 'Overdue Invoices',
-      description: `${overdueCount} invoices have passed their payment terms.`,
-      severity: 'Medium',
+      type: 'Overdue Invoice',
+      deal: `${overdueCount} invoices`,
+      detail: `${overdueCount} invoices have passed their payment terms.`,
+      severity: 'Medium'
     });
   }
 
-  // Critical health deals
-  const criticalDeals = await DealHealth.find({ status: 'CRITICAL' }).sort({ createdAt: -1 }).limit(5);
-  if (criticalDeals.length > 0) {
+  const criticalDeals = await DealHealth.countDocuments({
+    status: 'CRITICAL',
+    $or: [
+      { quotationId: { $in: quoteIds } },
+      { salesOrderId: { $in: orderIds } }
+    ]
+  });
+  if (criticalDeals > 0) {
     items.push({
-      title: 'Critical Deal Health',
-      description: `${criticalDeals.length} deals are in critical health status.`,
-      severity: 'High',
+      type: 'Critical Deal Health',
+      deal: `${criticalDeals} deals`,
+      detail: `${criticalDeals} deals are in critical health status.`,
+      severity: 'High'
     });
   }
 
@@ -173,16 +218,17 @@ async function getAttentionItems() {
 /**
  * Get recent activity feed.
  */
-async function getActivity() {
+async function getActivity(customerIds = null) {
   const QuotationHistory = require('../models/QuotationHistory');
   const SalesOrderHistory = require('../models/SalesOrderHistory');
+  const { quoteIds, orderIds } = await scopedIds(customerIds);
 
-  const qActivities = await QuotationHistory.find()
+  const qActivities = await QuotationHistory.find({ quotationId: { $in: quoteIds } })
     .populate('actorId')
     .sort({ createdAt: -1 })
     .limit(5);
 
-  const soActivities = await SalesOrderHistory.find()
+  const soActivities = await SalesOrderHistory.find({ salesOrderId: { $in: orderIds } })
     .populate('actorId')
     .sort({ createdAt: -1 })
     .limit(5);
@@ -191,18 +237,8 @@ async function getActivity() {
     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
     .slice(0, 10);
 
-  if (combined.length === 0) {
-    return [
-      { title: 'Payment received for INV-1042', time: '10 mins ago' },
-      { title: 'Manager approved discount exception for Acme Corp', time: '45 mins ago' },
-      { title: 'Warehouse marked order as fulfilled', time: '2 hours ago' },
-      { title: 'Sales team created a new enterprise quotation', time: '3 hours ago' },
-      { title: 'Negotiation for TechNova moved to approval', time: '5 hours ago' }
-    ];
-  }
-
   return combined.map(a => ({
-    title: a.action || `Action recorded`,
+    title: a.action || 'Action recorded',
     time: new Date(a.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
   }));
 }

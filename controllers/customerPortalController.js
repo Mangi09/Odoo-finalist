@@ -1,11 +1,45 @@
 const Quotation = require('../models/Quotation');
 const Negotiation = require('../models/Negotiation');
 const Customer = require('../models/Customer');
+const SalesOrder = require('../models/SalesOrder');
 const { transitionStatus } = require('../utils/stateMachine');
 const { createSalesOrderFromQuotation } = require('../services/salesOrderService');
 const ApiResponse = require('../utils/apiResponse');
 
 const ALLOWED_DISCOUNT_THRESHOLD = 12; // 12% max auto-approve threshold
+
+exports.getAdminRequests = async (req, res, next) => {
+  try {
+    const negotiations = await Negotiation.find()
+      .populate('customerId')
+      .populate('quotationId')
+      .sort({ createdAt: -1 });
+
+    const quoteIds = negotiations.map(item => item.quotationId?._id || item.quotationId).filter(Boolean);
+    const orders = await SalesOrder.find({ quotationId: { $in: quoteIds } }, 'orderNumber quotationId');
+    const orderByQuote = orders.reduce((acc, order) => {
+      acc[order.quotationId.toString()] = order;
+      return acc;
+    }, {});
+
+    return ApiResponse.success(res, negotiations.map(item => {
+      const quoteId = item.quotationId?._id || item.quotationId;
+      const order = quoteId ? orderByQuote[quoteId.toString()] : null;
+      return {
+        _id: item._id,
+        customerName: item.customerId?.name || item.customerId?.companyName || 'Customer',
+        orderNumber: order?.orderNumber || '-',
+        orderId: order?._id || null,
+        quotationId: quoteId || null,
+        request: item.message || item.type,
+        status: item.status,
+        createdAt: item.createdAt
+      };
+    }));
+  } catch (err) {
+    next(err);
+  }
+};
 
 /**
  * GET /api/v1/portal/quotation/:id
@@ -24,12 +58,21 @@ exports.getPortalQuotation = async (req, res, next) => {
 
     if (!quotation) return ApiResponse.notFound(res, 'Quotation not found');
 
+    if (req.user && req.user.role === 'customer') {
+      if (quotation.customerId?._id?.toString() !== req.user.customerId && quotation.customerId?.toString() !== req.user.customerId) {
+        return ApiResponse.forbidden(res, 'Access denied. This quotation belongs to another customer.');
+      }
+    }
+
     const cust = quotation.customerId || {};
     const safeData = {
       id: `Q-${quotation._id.toString().slice(-4).toUpperCase()}`,
       _id: quotation._id,
       customerName: cust.name,
       status: quotation.status,
+      subtotalAmount: quotation.subtotalAmount || quotation.items.reduce((sum, it) => sum + (it.lineTotal || 0), 0),
+      globalDiscountPercent: quotation.globalDiscountPercent || 0,
+      globalDiscountAmount: quotation.globalDiscountAmount || 0,
       totalAmount: quotation.totalAmount,
       items: quotation.items.map(it => ({
         id: it._id,
@@ -56,6 +99,12 @@ exports.acceptQuotation = async (req, res, next) => {
     const quotation = await Quotation.findById(req.params.id).populate('items.productId');
     if (!quotation) return ApiResponse.notFound(res, 'Quotation not found');
 
+    if (req.user && req.user.role === 'customer') {
+      if (quotation.customerId?._id?.toString() !== req.user.customerId && quotation.customerId?.toString() !== req.user.customerId) {
+        return ApiResponse.forbidden(res, 'Access denied. This quotation belongs to another customer.');
+      }
+    }
+
     if (quotation.status === 'RE_APPROVAL' || quotation.status === 'PENDING_APPROVAL') {
       return ApiResponse.badRequest(res, 'Quotation is currently under internal approval. Please wait for confirmation.');
     }
@@ -81,6 +130,12 @@ exports.rejectQuotation = async (req, res, next) => {
     const quotation = await Quotation.findById(req.params.id);
     if (!quotation) return ApiResponse.notFound(res, 'Quotation not found');
 
+    if (req.user && req.user.role === 'customer') {
+      if (quotation.customerId?._id?.toString() !== req.user.customerId && quotation.customerId?.toString() !== req.user.customerId) {
+        return ApiResponse.forbidden(res, 'Access denied. This quotation belongs to another customer.');
+      }
+    }
+
     const actorId = req.user?._id || quotation.customerId;
     const { reason } = req.body;
     await transitionStatus(quotation, 'CANCELLED', actorId, `Customer rejected quotation: ${reason || 'Not interested'}`);
@@ -100,14 +155,31 @@ exports.rejectQuotation = async (req, res, next) => {
  */
 exports.submitNegotiation = async (req, res, next) => {
   try {
-    const quotation = await Quotation.findById(req.params.id);
+    const { orderId, counterDiscount, requestedDate, lineComment, lineItemName } = req.body;
+    let salesOrder = null;
+    let quotationId = req.params.id;
+
+    if (orderId) {
+      salesOrder = await SalesOrder.findOne({ _id: orderId, customerId: req.user.customerId });
+      if (!salesOrder) return ApiResponse.forbidden(res, 'Access denied. This sales order belongs to another customer.');
+      quotationId = salesOrder.quotationId;
+    }
+
+    const quotation = await Quotation.findById(quotationId);
     if (!quotation) return ApiResponse.notFound(res, 'Quotation not found');
 
-    const { counterDiscount, requestedDate, lineComment, lineItemName } = req.body;
+    if (req.user && req.user.role === 'customer') {
+      if (quotation.customerId?._id?.toString() !== req.user.customerId && quotation.customerId?.toString() !== req.user.customerId) {
+        return ApiResponse.forbidden(res, 'Access denied. This quotation belongs to another customer.');
+      }
+    }
+
     const discountVal = parseFloat(counterDiscount);
 
     const negotiation = await Negotiation.create({
       quotationId: quotation._id,
+      customerId: quotation.customerId,
+      type: 'COUNTER_OFFER',
       items: quotation.items.map(it => ({
         quotationItemId: it._id,
         productId: it.productId,
@@ -115,7 +187,7 @@ exports.submitNegotiation = async (req, res, next) => {
         requestedQty: it.qty,
         requestedDiscountPercent: !isNaN(discountVal) ? discountVal : it.discountPercent
       })),
-      message: lineComment || `Counter offer: ${counterDiscount}% discount requested. Date: ${requestedDate || 'Standard'}`
+      message: lineComment || `Counter offer for ${salesOrder?.orderNumber || 'quotation'}: ${counterDiscount}% discount requested. Date: ${requestedDate || 'Standard'}`
     });
 
     const actorId = req.user?._id || quotation.customerId;
@@ -139,7 +211,9 @@ exports.submitNegotiation = async (req, res, next) => {
     return ApiResponse.success(res, {
       quoteStatus,
       notification,
-      negotiation
+      negotiation,
+      salesOrderId: salesOrder?._id || null,
+      orderNumber: salesOrder?.orderNumber || null
     });
   } catch (err) {
     next(err);

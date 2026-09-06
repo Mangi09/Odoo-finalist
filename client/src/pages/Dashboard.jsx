@@ -6,11 +6,11 @@ export default function Dashboard({ onNavigate }) {
   const [userName, setUserName] = useState('Atharva');
   const [greeting, setGreeting] = useState('Good morning');
   const [summary, setSummary] = useState({
-    openDeals: 6,
-    pipelineValue: '₹18.4L',
-    pendingApprovals: 3,
-    atRiskDeals: 2,
-    actionRequired: 5,
+    openDeals: 0,
+    pipelineValue: '₹0.00L',
+    pendingApprovals: 0,
+    atRiskDeals: 0,
+    actionRequired: 0,
   });
   const [recentDeals, setRecentDeals] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -45,21 +45,23 @@ export default function Dashboard({ onNavigate }) {
       ]);
 
       if (sumData.status === 'fulfilled' && sumData.value) {
-        setSummary(prev => ({
-          ...prev,
-          openDeals: sumData.value.openDeals ?? prev.openDeals,
-          pipelineValue: sumData.value.pipelineValue ?? prev.pipelineValue,
-          pendingApprovals: sumData.value.pendingApprovals ?? prev.pendingApprovals,
-          atRiskDeals: sumData.value.atRiskDeals ?? prev.atRiskDeals,
-          actionRequired: sumData.value.actionRequired ?? prev.actionRequired,
-        }));
+        setSummary({
+          openDeals: sumData.value.openDeals ?? 0,
+          pipelineValue: sumData.value.pipelineValue ?? '₹0.00L',
+          pendingApprovals: sumData.value.pendingApprovals ?? 0,
+          atRiskDeals: sumData.value.atRiskDeals ?? 0,
+          actionRequired: sumData.value.actionRequired ?? 0,
+          openDealsDescription: sumData.value.openDealsDescription,
+          pipelineDescription: sumData.value.pipelineDescription,
+          actionRequiredDescription: sumData.value.actionRequiredDescription,
+        });
       }
 
-      if (dealsData.status === 'fulfilled' && Array.isArray(dealsData.value) && dealsData.value.length > 0) {
+      if (dealsData.status === 'fulfilled' && Array.isArray(dealsData.value)) {
         setRecentDeals(dealsData.value);
       }
     } catch (err) {
-      console.warn('Dashboard live fetch error, using defaults:', err.message);
+      console.warn('Dashboard live fetch error:', err.message);
     } finally {
       setLoading(false);
     }
@@ -80,7 +82,7 @@ export default function Dashboard({ onNavigate }) {
               <RefreshCw size={15} className={loading ? "spin" : ""} />
               <span>Refresh</span>
             </button>
-            <button className="btn-primary new-quotation" onClick={() => onNavigate && onNavigate('quotations')} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <button className="btn-primary new-quotation" onClick={() => onNavigate && onNavigate('quotation-detail', {})} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
               <Plus size={18} />
               <span>New Quotation</span>
             </button>
@@ -165,9 +167,7 @@ export default function Dashboard({ onNavigate }) {
           </div>
         ) : (
           <div className="audit-trail">
-            <div className="audit-item"><span className="audit-dot" /><div className="audit-body"><div className="audit-title">Acme Corp quotation reopened by Finance</div><div className="audit-meta">Discount exception requires note from Sales Manager</div></div></div>
-            <div className="audit-item"><span className="audit-dot" /><div className="audit-body"><div className="audit-title">Stock split computed for Q-1042</div><div className="audit-meta">Main Warehouse plus East Depot</div></div></div>
-            <div className="audit-item"><span className="audit-dot" /><div className="audit-body"><div className="audit-title">Best products exported to Deal Health</div><div className="audit-meta">Laptop Pro 14 and Care Plan 2yr</div></div></div>
+            <div className="audit-item"><span className="audit-dot" /><div className="audit-body"><div className="audit-title">No recent pipeline deals found</div><div className="audit-meta">Create a quotation to start the pipeline.</div></div></div>
           </div>
         )}
       </div>

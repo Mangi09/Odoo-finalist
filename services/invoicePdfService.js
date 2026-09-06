@@ -87,6 +87,9 @@ async function generateInvoicePdf(invoice, res) {
   if (items && items.length > 0) {
     let y = tableTop + 25;
     let idx = 1;
+    let invoiceSubtotal = 0;
+    const orderSubtotal = salesOrder?.subtotalAmount || items.reduce((sum, item) => sum + Number(item.lineTotal || 0), 0);
+    const discountFactor = orderSubtotal > 0 ? (Number(salesOrder?.totalAmount || orderSubtotal) / orderSubtotal) : 1;
 
     for (const item of items) {
       const product = item.productId && item.productId.name ? item.productId : await Product.findById(item.productId);
@@ -97,12 +100,16 @@ async function generateInvoicePdf(invoice, res) {
       if (invoice.type === 'ONE_TIME' && itemBillingType !== 'ONE_TIME') continue;
       if (invoice.type === 'RECURRING' && itemBillingType !== 'RECURRING') continue;
 
+      const lineSubtotal = Number(item.lineTotal || 0);
+      const discountedLineTotal = Math.round(lineSubtotal * discountFactor);
+      invoiceSubtotal += lineSubtotal;
+
       doc.text(idx.toString(), 50, y, { width: 30 });
       doc.text(productName, 80, y, { width: 200 });
       doc.text(item.qty.toString(), 280, y, { width: 50, align: 'center' });
       doc.text(`₹${(item.unitPrice || 0).toLocaleString('en-IN')}`, 330, y, { width: 80, align: 'right' });
       doc.text(`${item.discountPercent || 0}%`, 410, y, { width: 60, align: 'right' });
-      doc.text(`₹${(item.lineTotal || 0).toLocaleString('en-IN')}`, 470, y, { width: 75, align: 'right' });
+      doc.text(`₹${discountedLineTotal.toLocaleString('en-IN')}`, 470, y, { width: 75, align: 'right' });
 
       y += 20;
       idx++;
@@ -115,9 +122,14 @@ async function generateInvoicePdf(invoice, res) {
 
     // ── Total ──
     doc.moveTo(50, y + 5).lineTo(545, y + 5).stroke('#ccc');
+    doc.font('Helvetica').fontSize(10);
+    doc.text('Subtotal:', 350, y + 15, { width: 120, align: 'right' });
+    doc.text(`₹${invoiceSubtotal.toLocaleString('en-IN')}`, 470, y + 15, { width: 75, align: 'right' });
+    doc.text(`Global Discount (${salesOrder?.globalDiscountPercent || 0}%):`, 350, y + 30, { width: 120, align: 'right' });
+    doc.text(`-₹${Math.max(0, invoiceSubtotal - Number(invoice.amount || 0)).toLocaleString('en-IN')}`, 470, y + 30, { width: 75, align: 'right' });
     doc.font('Helvetica-Bold').fontSize(12);
-    doc.text('Total Amount:', 350, y + 15, { width: 120, align: 'right' });
-    doc.text(`₹${(invoice.amount || 0).toLocaleString('en-IN')}`, 470, y + 15, { width: 75, align: 'right' });
+    doc.text('Total Amount:', 350, y + 48, { width: 120, align: 'right' });
+    doc.text(`₹${(invoice.amount || 0).toLocaleString('en-IN')}`, 470, y + 48, { width: 75, align: 'right' });
   } else {
     doc.text('No line items available', 50, tableTop + 25);
     doc.font('Helvetica-Bold').fontSize(12);

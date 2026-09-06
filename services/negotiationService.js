@@ -8,6 +8,7 @@ const Quotation = require('../models/Quotation');
 const { runDiscountEngine } = require('./discountEngine');
 const Customer = require('../models/Customer');
 const { transitionStatus } = require('../utils/stateMachine');
+const { calculateQuotationTotals } = require('../utils/quotationTotals');
 const logger = require('../utils/logger');
 
 /**
@@ -43,7 +44,11 @@ async function reviewNegotiation(negotiationId, action, actorId) {
     }
 
     // Recalculate totals
-    quotation.totalAmount = quotation.items.reduce((sum, i) => sum + i.lineTotal, 0);
+    const totals = calculateQuotationTotals(quotation.items, quotation.globalDiscountPercent || 0);
+    quotation.subtotalAmount = totals.subtotalAmount;
+    quotation.globalDiscountAmount = totals.globalDiscountAmount;
+    quotation.totalAmount = totals.totalAmount;
+    quotation.totalMargin = totals.totalMargin;
     await quotation.save();
 
     // Re-run discount engine

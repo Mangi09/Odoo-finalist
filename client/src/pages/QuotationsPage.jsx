@@ -2,19 +2,26 @@ import React, { useState, useEffect } from 'react';
 import { Plus, LayoutGrid, List, RefreshCw } from 'lucide-react';
 import { api } from '../services/api';
 
-const initialStageGroups = [
-  { title: "Draft", quotes: [{ id: "Q-1044", customer: "Acme Corp", amount: "₹1,80,000", totalAmount: 180000 }] },
-  { title: "Pending Approval", quotes: [{ id: "Q-1042", customer: "Acme Corp", amount: "₹2,73,000", totalAmount: 273000 }] },
-  { title: "Approved", quotes: [{ id: "Q-1040", customer: "Nova Retail", amount: "₹9,75,000", totalAmount: 975000 }] },
-  { title: "Negotiation", quotes: [{ id: "Q-1039", customer: "Beta Industries", amount: "₹4,80,000", totalAmount: 480000 }] },
-  { title: "Confirmed", quotes: [{ id: "Q-1038", customer: "Acme Corp", amount: "₹68,000", totalAmount: 68000 }] },
+const emptyStageGroups = () => [
+  { title: "Draft", quotes: [] }, { title: "Pending Approval", quotes: [] },
+  { title: "Approved", quotes: [] }, { title: "Negotiation", quotes: [] }, { title: "Confirmed", quotes: [] },
 ];
 
 export default function QuotationsPage({ onNavigate }) {
   const [viewMode, setViewMode] = useState('kanban'); // 'kanban' | 'table'
-  const [stageGroups, setStageGroups] = useState(initialStageGroups);
+  const [stageGroups, setStageGroups] = useState(emptyStageGroups);
   const [allQuotes, setAllQuotes] = useState([]);
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [searchFilter, setSearchFilter] = useState("");
   const [loading, setLoading] = useState(false);
+  const currentRole = (() => {
+    try {
+      return JSON.parse(localStorage.getItem('dealflow-user') || '{}')?.role;
+    } catch {
+      return null;
+    }
+  })();
+  const canManageQuotation = ['salesperson', 'sales_manager', 'admin'].includes(currentRole);
 
   useEffect(() => {
     loadQuotations();
@@ -24,7 +31,7 @@ export default function QuotationsPage({ onNavigate }) {
     setLoading(true);
     try {
       const data = await api.quotations.getAll();
-      if (Array.isArray(data) && data.length > 0) {
+      if (Array.isArray(data)) {
         setAllQuotes(data);
 
         // Group by status
@@ -39,13 +46,7 @@ export default function QuotationsPage({ onNavigate }) {
           'CONFIRMED': 'Confirmed',
         };
 
-        const groups = [
-          { title: "Draft", quotes: [] },
-          { title: "Pending Approval", quotes: [] },
-          { title: "Approved", quotes: [] },
-          { title: "Negotiation", quotes: [] },
-          { title: "Confirmed", quotes: [] },
-        ];
+        const groups = emptyStageGroups();
 
         data.forEach(q => {
           const groupTitle = statusMap[q.status] || 'Draft';
@@ -61,33 +62,59 @@ export default function QuotationsPage({ onNavigate }) {
             rawQuote: q,
             status: groupTitle,
             updatedAt: q.updatedAt || q.createdAt,
+            salesperson: q.salespersonId?.name || 'Unassigned',
           });
         });
 
-        // Ensure every group has at least initial mock if empty in dev
-        initialStageGroups.forEach(initGroup => {
-          const matching = groups.find(g => g.title === initGroup.title);
-          if (matching && matching.quotes.length === 0) {
-            matching.quotes = initGroup.quotes;
-          }
-        });
-
         setStageGroups(groups);
-      } else {
-        // Fallback to initial mock list
-        const flattened = initialStageGroups.flatMap(g => g.quotes.map(q => ({ ...q, status: g.title })));
-        setAllQuotes(flattened);
       }
     } catch (err) {
-      console.warn('Could not load live quotations, using seeded fallback:', err.message);
-      const flattened = initialStageGroups.flatMap(g => g.quotes.map(q => ({ ...q, status: g.title })));
-      setAllQuotes(flattened);
+      console.warn('Could not load quotations:', err.message);
+      setAllQuotes([]);
+      setStageGroups(emptyStageGroups());
     } finally {
       setLoading(false);
     }
   };
 
-  const tableList = allQuotes.length > 0 ? allQuotes : stageGroups.flatMap(g => g.quotes.map(q => ({ ...q, status: g.title })));
+  const archiveQuotation = async (quote, e) => {
+    e.stopPropagation();
+    if (!quote?._id || !window.confirm(`Archive quotation ${quote.id || quote._id}?`)) return;
+    try {
+      await api.quotations.archive(quote._id);
+      await loadQuotations();
+    } catch (err) {
+      window.alert(err.message || 'Could not archive quotation');
+    }
+  };
+
+  const deleteQuotation = async (quote, e) => {
+    e.stopPropagation();
+    if (!quote?._id || !window.confirm(`Delete quotation ${quote.id || quote._id}? This cannot be undone.`)) return;
+    try {
+      await api.quotations.delete(quote._id);
+      await loadQuotations();
+    } catch (err) {
+      window.alert(err.message || 'Could not delete quotation');
+    }
+  };
+
+  const matchesQuoteFilter = (quote) => {
+    const status = quote.status || quote.rawStatus || "";
+    const customer = quote.customerId?.name || quote.customerId?.companyName || quote.customer || "";
+    const salesperson = quote.salespersonId?.name || quote.salesperson || "";
+    const id = quote.quotationNumber || quote.id || "";
+    const text = `${id} ${customer} ${salesperson} ${status}`.toLowerCase();
+    return (statusFilter === "all" || status === statusFilter) && text.includes(searchFilter.toLowerCase());
+  };
+  const tableList = allQuotes.filter(matchesQuoteFilter);
+  const visibleStageGroups = stageGroups.map(group => ({
+    ...group,
+    quotes: group.quotes.filter(quote => {
+      const raw = quote.rawQuote || quote;
+      return matchesQuoteFilter(raw);
+    })
+  }));
 
   return (
     <main className="content">
@@ -121,7 +148,7 @@ export default function QuotationsPage({ onNavigate }) {
               </button>
               <button
                 className="btn-primary"
-                onClick={() => onNavigate && onNavigate("quotation-detail", { id: "Q-NEW", customer: "New Customer", status: "Draft" })}
+                onClick={() => onNavigate && onNavigate("quotation-detail", {})}
                 style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
               >
                 <Plus size={18} />
@@ -136,10 +163,36 @@ export default function QuotationsPage({ onNavigate }) {
             </div>
           )}
 
+          <div className="filter-section" style={{ display: "flex", gap: "10px", flexWrap: "wrap", margin: "14px 0" }}>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              style={{ padding: "6px 12px", borderRadius: "6px", border: "1px solid #cbd5e0", fontSize: "13px" }}
+            >
+              <option value="all">All Statuses</option>
+              <option value="DRAFT">Draft</option>
+              <option value="PENDING_APPROVAL">Pending Approval</option>
+              <option value="APPROVED">Approved</option>
+              <option value="SENT_TO_CUSTOMER">Sent</option>
+              <option value="NEGOTIATION">Negotiation</option>
+              <option value="RE_APPROVAL">Re-Approval</option>
+              <option value="ACCEPTED">Accepted</option>
+              <option value="REJECTED">Rejected</option>
+              <option value="CANCELLED">Cancelled</option>
+            </select>
+            <input
+              type="text"
+              value={searchFilter}
+              onChange={(e) => setSearchFilter(e.target.value)}
+              placeholder="Filter by quote, customer, salesperson..."
+              style={{ flex: 1, minWidth: "220px", padding: "6px 12px", borderRadius: "6px", border: "1px solid #cbd5e0", fontSize: "13px" }}
+            />
+          </div>
+
           {/* Kanban Board View */}
           {viewMode === 'kanban' ? (
             <div className="flow-board">
-              {stageGroups.map((group) => (
+              {visibleStageGroups.map((group) => (
                 <section className="flow-column" key={group.title}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                     <h2 style={{ margin: 0 }}>{group.title}</h2>
@@ -148,16 +201,23 @@ export default function QuotationsPage({ onNavigate }) {
                     </span>
                   </div>
                   {group.quotes.map((quote) => (
-                    <button
-                      type="button"
+                    <div
                       className="flow-record-card"
                       key={quote.id}
                       onClick={() => onNavigate && onNavigate("quotation-detail", { ...quote, status: group.title })}
+                      role="button"
+                      tabIndex={0}
                     >
                       <strong>{quote.id}</strong>
                       <span>{quote.customer}</span>
                       <small>{quote.amount}</small>
-                    </button>
+                      {canManageQuotation && (
+                        <span style={{ display: 'flex', gap: '6px', marginTop: '8px' }}>
+                          <button type="button" className="btn-outline" style={{ padding: '2px 6px', fontSize: '11px' }} onClick={(e) => archiveQuotation(quote, e)}>Archive</button>
+                          <button type="button" className="btn-outline" style={{ padding: '2px 6px', fontSize: '11px', color: '#dc2626', borderColor: '#fca5a5' }} onClick={(e) => deleteQuotation(quote, e)}>Delete</button>
+                        </span>
+                      )}
+                    </div>
                   ))}
                 </section>
               ))}
@@ -170,6 +230,7 @@ export default function QuotationsPage({ onNavigate }) {
                   <tr>
                     <th>Quotation #</th>
                     <th>Customer</th>
+                    <th>Salesperson</th>
                     <th>Amount</th>
                     <th>Status</th>
                     <th>Updated</th>
@@ -178,9 +239,9 @@ export default function QuotationsPage({ onNavigate }) {
                 </thead>
                 <tbody>
                   {tableList.map((quote, idx) => {
-                    const custName = quote.customerId?.name || quote.customer || 'Acme Corp';
+                    const custName = quote.customerId?.name || quote.customer || 'Customer';
                     const qId = quote.quotationNumber || quote.id || (quote._id ? `Q-${quote._id.toString().slice(-4).toUpperCase()}` : `Q-${idx + 1040}`);
-                    const amt = quote.totalAmount ? `₹${quote.totalAmount.toLocaleString('en-IN')}` : (quote.amount || '₹2,73,000');
+                    const amt = quote.totalAmount ? `₹${quote.totalAmount.toLocaleString('en-IN')}` : (quote.amount || '₹0');
                     const st = quote.status || 'Draft';
                     const dateStr = quote.updatedAt ? new Date(quote.updatedAt).toLocaleDateString() : 'Recent';
 
@@ -197,6 +258,7 @@ export default function QuotationsPage({ onNavigate }) {
                       >
                         <td style={{ fontWeight: 600, color: '#1a365d' }}>{qId}</td>
                         <td>{custName}</td>
+                        <td>{quote.salesperson || 'Unassigned'}</td>
                         <td style={{ fontWeight: 600 }}>{amt}</td>
                         <td><span className={`badge ${badgeClass}`}>{st}</span></td>
                         <td>{dateStr}</td>
@@ -212,6 +274,26 @@ export default function QuotationsPage({ onNavigate }) {
                           >
                             Open
                           </button>
+                          {canManageQuotation && (
+                            <>
+                              <button
+                                type="button"
+                                className="btn-outline"
+                                style={{ padding: '3px 10px', fontSize: '11px', marginLeft: '6px' }}
+                                onClick={(e) => archiveQuotation(quote, e)}
+                              >
+                                Archive
+                              </button>
+                              <button
+                                type="button"
+                                className="btn-outline"
+                                style={{ padding: '3px 10px', fontSize: '11px', marginLeft: '6px', color: '#dc2626', borderColor: '#fca5a5' }}
+                                onClick={(e) => deleteQuotation(quote, e)}
+                              >
+                                Delete
+                              </button>
+                            </>
+                          )}
                         </td>
                       </tr>
                     );
@@ -221,27 +303,6 @@ export default function QuotationsPage({ onNavigate }) {
             </div>
           )}
 
-          <div className="button-row" style={{ marginTop: "20px", display: 'flex', gap: '10px' }}>
-            <button
-              className="btn-primary"
-              onClick={() => onNavigate && onNavigate("quotation-detail", { id: "Q-1042", customer: "Acme Corp", status: "Draft" })}
-            >
-              New Quotation
-            </button>
-            <button
-              className="btn-outline"
-              onClick={() => setViewMode(viewMode === 'kanban' ? 'table' : 'kanban')}
-            >
-              {viewMode === 'kanban' ? 'Switch to Table View' : 'Switch to Kanban View'}
-            </button>
-            <button
-              className="btn-outline"
-              onClick={() => onNavigate && onNavigate("customer-portal", { id: "Q-1042", customer: "Acme Corp" })}
-              title="Preview how customer sees this quotation"
-            >
-              Customer Portal Preview
-            </button>
-          </div>
 
           <div className="info-box" style={{ marginTop: "20px" }}>
             Click any quotation card or table row to open its line items, discount margins, upsell suggestions, and submission workflow.
